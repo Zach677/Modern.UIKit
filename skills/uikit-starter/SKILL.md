@@ -57,7 +57,7 @@ python3 scripts/create_project.py \
   --project-name ShelfMusic \
   --display-name "Shelf Music" \
   --destination /tmp/shelf-music \
-  --local-template-path /Users/star/Developer/zach-repo/No-StoryBoard \
+  --local-template-path /absolute/path/to/Modern.UIKit \
   --verify test
 ```
 
@@ -77,5 +77,5 @@ python3 scripts/create_project.py \
 ## Notes
 
 - The skill assumes the template repository is `Zach677/Modern.UIKit` unless the caller overrides it.
-- The script rewrites the current template markers automatically, so the skill should not rely on the old `No-StoryBoard` name in user-facing conversation.
+- The script rewrites the template placeholder names automatically, so the skill should not rely on the checked-in internal names in user-facing conversation.
 - If the user wants this skill to be auto-discoverable on the current machine, install it under `~/.codex/skills`, preferably via symlink to the repo copy.

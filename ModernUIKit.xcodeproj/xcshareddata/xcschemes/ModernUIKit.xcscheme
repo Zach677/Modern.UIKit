@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F829D0802E252173005A7D1A"
-               BuildableName = "No-StoryBoard.app"
-               BlueprintName = "No-StoryBoard"
-               ReferencedContainer = "container:No-StoryBoard.xcodeproj">
+               BuildableName = "ModernUIKit.app"
+               BlueprintName = "ModernUIKit"
+               ReferencedContainer = "container:ModernUIKit.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -30,9 +30,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F829D09D2E252176005A7D1A"
-               BuildableName = "No-StoryBoardTests.xctest"
-               BlueprintName = "No-StoryBoardTests"
-               ReferencedContainer = "container:No-StoryBoard.xcodeproj">
+               BuildableName = "ModernUIKitTests.xctest"
+               BlueprintName = "ModernUIKitTests"
+               ReferencedContainer = "container:ModernUIKit.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -49,9 +49,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "F829D09D2E252176005A7D1A"
-               BuildableName = "No-StoryBoardTests.xctest"
-               BlueprintName = "No-StoryBoardTests"
-               ReferencedContainer = "container:No-StoryBoard.xcodeproj">
+               BuildableName = "ModernUIKitTests.xctest"
+               BlueprintName = "ModernUIKitTests"
+               ReferencedContainer = "container:ModernUIKit.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -59,9 +59,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F829D0802E252173005A7D1A"
-            BuildableName = "No-StoryBoard.app"
-            BlueprintName = "No-StoryBoard"
-            ReferencedContainer = "container:No-StoryBoard.xcodeproj">
+            BuildableName = "ModernUIKit.app"
+            BlueprintName = "ModernUIKit"
+            ReferencedContainer = "container:ModernUIKit.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
    </TestAction>
@@ -80,9 +80,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F829D0802E252173005A7D1A"
-            BuildableName = "No-StoryBoard.app"
-            BlueprintName = "No-StoryBoard"
-            ReferencedContainer = "container:No-StoryBoard.xcodeproj">
+            BuildableName = "ModernUIKit.app"
+            BlueprintName = "ModernUIKit"
+            ReferencedContainer = "container:ModernUIKit.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -97,9 +97,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "F829D0802E252173005A7D1A"
-            BuildableName = "No-StoryBoard.app"
-            BlueprintName = "No-StoryBoard"
-            ReferencedContainer = "container:No-StoryBoard.xcodeproj">
+            BuildableName = "ModernUIKit.app"
+            BlueprintName = "ModernUIKit"
+            ReferencedContainer = "container:ModernUIKit.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

@@ -2,8 +2,8 @@ SHELL := /bin/bash
 .SHELLFLAGS := -o pipefail -c
 
 ROOT_DIR := $(shell pwd)
-PROJECT := $(ROOT_DIR)/No-StoryBoard.xcodeproj
-SCHEME := No-StoryBoard
+PROJECT := $(ROOT_DIR)/ModernUIKit.xcodeproj
+SCHEME := ModernUIKit
 CONFIGURATION ?= Debug
 DERIVED_DATA ?= $(ROOT_DIR)/.DerivedData
 SIMULATOR_DESTINATION := generic/platform=iOS Simulator

@@ -1,5 +1,5 @@
 import XCTest
-@testable import No_StoryBoard
+@testable import ModernUIKit
 
 @MainActor
 final class AppContextTests: XCTestCase {

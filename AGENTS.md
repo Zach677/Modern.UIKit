@@ -3,7 +3,7 @@
 ## App Shape
 
 - This is a pure UIKit iOS starter with programmatic setup.
-- Keep the entry path as `No-UIKit/Application/main.swift` -> `AppDelegate.swift` -> `SceneDelegate.swift`.
+- Keep the entry path as `ModernUIKit/Application/main.swift` -> `AppDelegate.swift` -> `SceneDelegate.swift`.
 - `SceneDelegate` owns window creation, bootstraps the shared `AppContext`, and installs the root navigation shell.
 - `Interface/Root/RootViewController.swift` is the first screen and the seed of the future app shell.
 - Do not introduce SwiftUI into the starter by default. If a real project later chooses SwiftUI, that should be an explicit project decision rather than template drift.
@@ -12,11 +12,11 @@
 
 ### Top Level
 
-- `No-UIKit/` contains the app target source and resources.
+- `ModernUIKit/` contains the app target source and resources.
 - `Configuration/` contains shared Xcode build configuration files (`Base.xcconfig`, `Development.xcconfig`, `Release.xcconfig`, `Version.xcconfig`).
 - `Makefile` is the default shell entry point for local build workflows.
 - `README.md` explains the template contract and local override flow.
-- `No-StoryBoardTests/` contains the hosted unit tests for the app target.
+- `ModernUIKitTests/` contains the hosted unit tests for the app target.
 
 ### Application Layer
 
@@ -32,7 +32,7 @@
 
 ### Backend Layer
 
-- If the starter grows into a real app, create a top-level `Backend/` folder inside `No-UIKit/` for domain services, persistence, API clients, state ownership, and cross-feature runtime logic.
+- If the starter grows into a real app, create a top-level `Backend/` folder inside `ModernUIKit/` for domain services, persistence, API clients, state ownership, and cross-feature runtime logic.
 - Keep UI state rendering in `Interface/`, but keep state ownership in `Backend/`.
 
 ## Placement Guide
