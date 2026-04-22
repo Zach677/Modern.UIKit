@@ -89,5 +89,7 @@ iOSInjectionProject/
 Configuration/Developer.xcconfig
 Configuration/DevelopmentDeveloper.xcconfig
 Configuration/DeveloperRelease.xcconfig
+__pycache__/
+*.pyc
 
 # End of https://www.toptal.com/developers/gitignore/api/swift

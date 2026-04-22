@@ -1,0 +1,4 @@
+interface:
+  display_name: "UIKit Starter"
+  short_description: "Create new UIKit apps from the Modern.UIKit template"
+  default_prompt: "Use $uikit-starter to start a new UIKit app from the Modern.UIKit template."

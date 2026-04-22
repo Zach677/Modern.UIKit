@@ -29,6 +29,8 @@ The template includes an [`AGENTS.md`](./AGENTS.md) file with the intended proje
 
 `CLAUDE.md` is a symlink to `AGENTS.md` so both agent conventions resolve to the same source of truth.
 
+The repository also includes a reusable skill at `skills/uikit-starter/` for creating new apps from the template through `npx skills`.
+
 ## Structure
 
 ```text
@@ -87,4 +89,18 @@ make clean
 
 ```bash
 TEST_DESTINATION='platform=iOS Simulator,name=iPhone 17' make test
+```
+
+## Skill Install
+
+Once the repository changes are pushed, the scaffold skill can be installed with:
+
+```bash
+npx skills add https://github.com/Zach677/Modern.UIKit --skill uikit-starter -g -y
+```
+
+For local iteration before pushing:
+
+```bash
+npx skills add /absolute/path/to/Modern.UIKit --skill uikit-starter -g -y
 ```
