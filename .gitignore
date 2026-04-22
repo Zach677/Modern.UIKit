@@ -16,6 +16,7 @@ xcuserdata/
 ## compatibility with Xcode 3 and earlier (ignoring not required starting Xcode 4)
 build/
 DerivedData/
+.DerivedData/
 *.moved-aside
 *.pbxuser
 !default.pbxuser
@@ -84,5 +85,9 @@ fastlane/test_output
 # https://github.com/johnno1962/injectionforxcode
 
 iOSInjectionProject/
+
+Configuration/Developer.xcconfig
+Configuration/DevelopmentDeveloper.xcconfig
+Configuration/DeveloperRelease.xcconfig
 
 # End of https://www.toptal.com/developers/gitignore/api/swift
