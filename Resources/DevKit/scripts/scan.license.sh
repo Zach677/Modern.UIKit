@@ -70,21 +70,36 @@ declare -A MANUAL_CORRECTIONS=()
 
 if [[ -f "$PACKAGE_RESOLVED" ]]; then
     echo "[*] reading package names from Package.resolved..."
-    while IFS= read -r line; do
-        if [[ $line =~ \"identity\"[[:space:]]*:[[:space:]]*\"([^\"]+)\" ]]; then
-            identity="${match[1]}"
-            if [[ -n "${MANUAL_CORRECTIONS[$identity]}" ]]; then
-                PACKAGE_NAME_MAP[$identity]="${MANUAL_CORRECTIONS[$identity]}"
-            else
-                read -r location_line
-                if [[ $location_line =~ \"location\"[[:space:]]*:[[:space:]]*\"[^/]+/([^/\"]+)\" ]]; then
-                    repo_name="${match[1]}"
-                    repo_name="${repo_name%.git}"
-                    PACKAGE_NAME_MAP[$identity]="$repo_name"
-                fi
-            fi
+    while IFS=$'\t' read -r identity repo_name; do
+        if [[ -z "$identity" ]]; then
+            continue
         fi
-    done < <(grep -A 1 '"identity"' "$PACKAGE_RESOLVED")
+
+        if [[ -n "${MANUAL_CORRECTIONS[$identity]}" ]]; then
+            PACKAGE_NAME_MAP[$identity]="${MANUAL_CORRECTIONS[$identity]}"
+        elif [[ -n "$repo_name" ]]; then
+            PACKAGE_NAME_MAP[$identity]="$repo_name"
+        fi
+    done < <(python3 - "$PACKAGE_RESOLVED" <<'PY'
+import json
+import sys
+from pathlib import Path
+from urllib.parse import urlparse
+
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+pins = data.get("pins") or data.get("object", {}).get("pins") or []
+
+for pin in pins:
+    identity = str(pin.get("identity") or "").lower()
+    location = str(pin.get("location") or "")
+    repo_name = Path(urlparse(location).path or location).name
+    if repo_name.endswith(".git"):
+        repo_name = repo_name[:-4]
+
+    if identity:
+        print(f"{identity}\t{repo_name}")
+PY
+    )
 fi
 
 function get_correct_package_name {
