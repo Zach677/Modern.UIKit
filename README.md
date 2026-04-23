@@ -121,6 +121,11 @@ Defaults:
 - `Resources/DevKit/scripts/run_xcodebuild.sh` treats the build log as the source of truth, so `make` stops on real build and test failures even when `xcodebuild` output is misleading.
 - `ModernUIKit.xcworkspace` is the default Xcode entrypoint, not just the `.xcodeproj`.
 
+Tooling expectations:
+
+- `xcbeautify` should be available on `PATH` for the Xcode and package-resolution workflows.
+- `prettier` should be available for DevKit formatting flows; the repository invokes it through `npx --yes prettier ...`.
+
 ## Local Signing Overrides
 
 By default the template uses a placeholder bundle identifier:

@@ -163,6 +163,15 @@ def replace_literal(path: Path, old: str, new: str) -> None:
     path.write_text(content.replace(old, new), encoding="utf-8")
 
 
+def remove_path_if_exists(path: Path) -> None:
+    if not path.exists():
+        return
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+        return
+    path.unlink()
+
+
 def ensure_display_name(info_plist: Path, display_name: str) -> None:
     content = info_plist.read_text(encoding="utf-8")
     key_block = "<key>CFBundleDisplayName</key>"
@@ -190,13 +199,92 @@ def rename_path(path: Path, new_name: str) -> Path:
     return target
 
 
-def copy_local_template(source: Path, destination: Path) -> None:
-    if destination.exists():
-        raise SystemExit(f"Destination already exists: {destination}")
-    ignore = shutil.ignore_patterns(
-        ".git", ".DerivedData", "__pycache__", ".DS_Store", "xcuserdata"
-    )
-    shutil.copytree(source, destination, symlinks=True, ignore=ignore)
+def write_generated_readme(
+    repo_root: Path,
+    project_name: str,
+    display_name: str,
+    source_dir_name: str,
+    tests_name: str,
+) -> None:
+    content = f"""# {display_name}
+
+`{display_name}` is a programmatic UIKit iOS app with a code-driven starter baseline.
+
+## Project Layout
+
+- `{source_dir_name}/` — app target source and bundled resources
+- `{tests_name}/` — hosted app tests
+- `Configuration/` — shared Xcode build configuration
+- `Resources/DevKit/scripts/` — reusable build, test, localization, and license-maintenance scripts
+- `{project_name}.xcworkspace` — default Xcode entrypoint
+- `{project_name}.xctestplan` — shared test plan attached to the app scheme
+
+## Development
+
+Build and test through the top-level `Makefile`:
+
+```bash
+make build
+make build-ios
+make build-sim
+make build-device
+make build-catalyst
+make test
+make test-unit
+make package-resolve
+make strip-xcstrings
+make validate-xcstrings
+make tidy-schemes
+make clean
+```
+
+Defaults:
+
+- `make build` covers the primary development paths: iOS Simulator plus Mac Catalyst
+- `make test` / `make test-unit` run on the Mac Catalyst destination
+- `Resources/DevKit/scripts/run_xcodebuild.sh` treats the build log as the source of truth instead of trusting exit codes alone
+
+Tooling expectations:
+
+- `xcbeautify` should be available on `PATH`
+- `prettier` should be available for DevKit formatting flows; the repo invokes it through `npx --yes prettier ...`
+
+## Local Signing Overrides
+
+By default the app uses a placeholder bundle identifier:
+
+```text
+com.example.$(PRODUCT_NAME:rfc1034identifier)
+```
+
+If you need local signing values without committing them, create one or more of:
+
+- `Configuration/Developer.xcconfig`
+- `Configuration/DevelopmentDeveloper.xcconfig`
+- `Configuration/DeveloperRelease.xcconfig`
+
+Typical overrides:
+
+```xcconfig
+DEVELOPMENT_TEAM = YOURTEAMID
+PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.yourapp
+```
+
+## Notes
+
+- Entry stays `main.swift` -> `AppDelegate` -> `SceneDelegate`
+- `LaunchScreen.storyboard` is the only storyboard; there is no `Main.storyboard`
+- App resources live under `{source_dir_name}/Resources/`
+- If the app grows beyond starter scope, add runtime/domain logic under `{source_dir_name}/Backend/`
+"""
+    (repo_root / "README.md").write_text(content, encoding="utf-8")
+
+
+def prune_template_only_files(repo_root: Path) -> None:
+    remove_path_if_exists(repo_root / "skills" / "uikit-starter")
+    skills_dir = repo_root / "skills"
+    if skills_dir.exists() and not any(skills_dir.iterdir()):
+        skills_dir.rmdir()
 
 
 def create_from_github(
@@ -239,9 +327,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-name", required=True)
     parser.add_argument("--display-name")
-    parser.add_argument("--repo")
-    parser.add_argument("--destination")
-    parser.add_argument("--local-template-path")
+    parser.add_argument("--repo", required=True)
     parser.add_argument("--template-repo", default=DEFAULT_TEMPLATE_REPO)
     parser.add_argument("--bundle-id")
     parser.add_argument("--source-dir-name")
@@ -267,22 +353,12 @@ def main() -> int:
     tests_name = f"{project_name}Tests"
     tests_bundle_id = f"{bundle_id}.tests"
 
-    if args.repo:
-        local_repo_path = create_from_github(
-            repo_name=args.repo,
-            template_repo=args.template_repo,
-            visibility=args.visibility,
-            parent_dir=Path(args.parent_dir).expanduser().resolve(),
-        )
-    else:
-        if not args.destination or not args.local_template_path:
-            raise SystemExit(
-                "Local mode requires both --destination and --local-template-path."
-            )
-        destination = Path(args.destination).expanduser().resolve()
-        local_template_path = Path(args.local_template_path).expanduser().resolve()
-        copy_local_template(local_template_path, destination)
-        local_repo_path = destination
+    local_repo_path = create_from_github(
+        repo_name=args.repo,
+        template_repo=args.template_repo,
+        visibility=args.visibility,
+        parent_dir=Path(args.parent_dir).expanduser().resolve(),
+    )
 
     markers = detect_template_markers(local_repo_path)
     source_dir_name = args.source_dir_name or project_name
@@ -323,6 +399,14 @@ def main() -> int:
     renamed_source_dir = rename_path(source_dir, source_dir_name)
     rename_path(tests_dir, tests_name)
     ensure_display_name(renamed_source_dir / "Resources" / "Info.plist", display_name)
+    prune_template_only_files(local_repo_path)
+    write_generated_readme(
+        repo_root=local_repo_path,
+        project_name=project_name,
+        display_name=display_name,
+        source_dir_name=source_dir_name,
+        tests_name=tests_name,
+    )
 
     scheme_path = (
         xcodeproj_dir / "xcshareddata" / "xcschemes" / f'{markers["project_name"]}.xcscheme'
