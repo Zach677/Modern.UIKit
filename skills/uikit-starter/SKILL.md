@@ -25,6 +25,7 @@ description: Create a new GitHub repository and local workspace from the `Zach67
 - Default mode.
 - Uses `gh repo create --template Zach677/Modern.UIKit --clone`.
 - Best when the user wants a new remote repo plus a local working copy.
+- Renames the root `.xcodeproj`, `.xcworkspace`, shared scheme, and `.xctestplan` along with the source and test folders.
 - Run a quick preflight first:
 
 ```bash

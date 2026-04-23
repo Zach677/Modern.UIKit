@@ -11,7 +11,7 @@ It is intentionally not a framework-heavy architecture preset. The goal is simpl
 - A dedicated `Application/` layer for lifecycle and bootstrap
 - A root `Interface/Root/` shell ready to become the first real screen
 - Shared `xcconfig` build settings instead of hardcoded personal values
-- A small hosted unit test target with `make test`
+- A small hosted unit test target, `ModernUIKit.xctestplan`, and `make test`
 - A reusable scaffold skill, `uikit-starter`, for creating fresh apps from this template
 - Optional `AGENTS.md` / `CLAUDE.md` files for agent-driven workflows
 
@@ -24,26 +24,13 @@ This is the best path when you want AI to create a fresh project end-to-end inst
 Install the skill:
 
 ```bash
-npx skills add Zach677/Modern.UIKit --skill uikit-starter
+npx skills add Zach677/Modern.UIKit --skill uikit-starter -g -y
 ```
-
-Then use it with your agent:
-
-```text
-Use $uikit-starter to create a new app:
-project name ShelfMusic,
-display name Shelf Music,
-repo Zach677/shelf-music,
-bundle id com.zach.shelfmusic,
-visibility private,
-verify test.
-```
-
 What it does:
 
 - creates a new repo from the GitHub template
 - clones it locally
-- renames the Xcode project, schemes, targets, source folders, and test target
+- renames the Xcode project, workspace, schemes, xctestplan, source folders, and test target
 - updates bundle identifiers and display name
 - runs `make build` or `make test` for verification
 
@@ -77,20 +64,23 @@ That is enough to make a new UIKit app feel engineered from the start, without f
 ModernUIKit/
   Application/
   Interface/Root/
-  Assets.xcassets/
-  Base.lproj/
-  Info.plist
+  Resources/
+    Assets.xcassets/
+    Info.plist
+    LaunchScreen.storyboard
+    Localizable.xcstrings
+    OpenSourceLicenses.md
 ModernUIKitTests/
 Configuration/
   Base.xcconfig
   Development.xcconfig
   Release.xcconfig
-  Test.xcconfig
   Version.xcconfig
+Resources/
+  DevKit/scripts/
+ModernUIKit.xctestplan
 skills/
   uikit-starter/
-scripts/
-  resolve_test_destination.py
 Makefile
 AGENTS.md
 CLAUDE.md -> AGENTS.md
@@ -101,6 +91,9 @@ Notes:
 - The checked-in template still uses placeholder on-disk names such as `ModernUIKit` and `ModernUIKitTests`.
 - The `uikit-starter` skill rewrites those placeholders when it scaffolds a real project.
 - If you clone the template manually, those placeholder names are expected until you rename them.
+- The Xcode Tests view comes from `ModernUIKit.xctestplan`, so the scheme has an explicit test plan instead of ad-hoc test target selection.
+- App-bundled resources follow the MuseAmp pattern and live under `ModernUIKit/Resources/`, not beside source files at the app root.
+- Test target settings follow the MuseAmp pattern too: they live in target build settings inside `project.pbxproj`, not in a separate test-only xcconfig file.
 
 ## Local Development
 
@@ -108,22 +101,25 @@ Build and test through the top-level `Makefile`:
 
 ```bash
 make build
+make build-ios
 make build-sim
 make build-device
+make build-catalyst
 make test
+make test-unit
+make package-resolve
+make strip-xcstrings
+make validate-xcstrings
+make tidy-schemes
 make clean
 ```
 
 Defaults:
 
-- `make build` targets the simulator path so the repo builds before signing is configured.
-- `make test` automatically resolves an available iPhone simulator on the current machine.
-
-Manual simulator override:
-
-```bash
-TEST_DESTINATION='platform=iOS Simulator,name=iPhone 17' make test
-```
+- `make build` now follows the MuseAmp idea: build the primary app paths you actually care about, here iOS Simulator plus Mac Catalyst.
+- `make test` / `make test-unit` run on the Mac Catalyst destination instead of relying on simulator discovery.
+- `Resources/DevKit/scripts/run_xcodebuild.sh` treats the build log as the source of truth, so `make` stops on real build and test failures even when `xcodebuild` output is misleading.
+- `ModernUIKit.xcworkspace` is the default Xcode entrypoint, not just the `.xcodeproj`.
 
 ## Local Signing Overrides
 
@@ -145,3 +141,18 @@ Typical overrides:
 DEVELOPMENT_TEAM = YOURTEAMID
 PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.yourapp
 ```
+
+## Testing Notes
+
+The sample app tests now live under `ModernUIKitTests/Application/` and are written in the modern Swift Testing style, which gives you better test discovery inside Xcode and makes the `ModernUIKit.xctestplan` view more useful as the project grows.
+
+## DevKit Scripts
+
+The template now ships with the same DevKit script categories that make MuseAmp useful:
+
+- `run_xcodebuild.sh` for log-aware build and test execution
+- `strip_stale_xcstrings.py` and `validate_xcstrings.py` for string catalog hygiene
+- `tidy_workspace_schemes.py` for keeping the workspace scheme list sane
+- `scan.license.sh` for package resolution and open source license aggregation
+
+These are lightweight template adaptations, not product-specific policy files.

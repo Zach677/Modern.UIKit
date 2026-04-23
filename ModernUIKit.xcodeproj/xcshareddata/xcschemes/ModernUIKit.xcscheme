@@ -42,28 +42,12 @@
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
-      <Testables>
-         <TestableReference
-            skipped = "NO"
-            parallelizable = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "F829D09D2E252176005A7D1A"
-               BuildableName = "ModernUIKitTests.xctest"
-               BlueprintName = "ModernUIKitTests"
-               ReferencedContainer = "container:ModernUIKit.xcodeproj">
-            </BuildableReference>
-         </TestableReference>
-      </Testables>
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "F829D0802E252173005A7D1A"
-            BuildableName = "ModernUIKit.app"
-            BlueprintName = "ModernUIKit"
-            ReferencedContainer = "container:ModernUIKit.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
+      <TestPlans>
+         <TestPlanReference
+            reference = "container:ModernUIKit.xctestplan"
+            default = "YES">
+         </TestPlanReference>
+      </TestPlans>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

@@ -1,0 +1,16 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "ModernUIKit.Root.Ready" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ModernUIKit.Root.Ready"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

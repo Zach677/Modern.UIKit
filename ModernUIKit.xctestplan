@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "1A3B5C7D-9E10-4A11-8B12-13C14D15E16F",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:ModernUIKit.xcodeproj",
+        "identifier" : "F829D09D2E252176005A7D1A",
+        "name" : "ModernUIKitTests"
+      }
+    }
+  ],
+  "version" : 1
+}

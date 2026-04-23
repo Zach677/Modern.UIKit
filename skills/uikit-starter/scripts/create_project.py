@@ -77,14 +77,20 @@ def detect_template_markers(repo_root: Path) -> dict[str, str]:
 
     project_path = project_paths[0]
     project_name = project_path.stem
+    workspace_paths = sorted(repo_root.glob("*.xcworkspace"))
+    workspace_name = workspace_paths[0].stem if len(workspace_paths) == 1 else None
+    testplan_paths = sorted(repo_root.glob("*.xctestplan"))
+    testplan_name = testplan_paths[0].stem if len(testplan_paths) == 1 else None
 
     base_xcconfig = repo_root / "Configuration" / "Base.xcconfig"
-    source_dir_match = re.search(
-        r"INFOPLIST_FILE\s*=\s*([^/\n]+)/Info\.plist",
+    info_plist_match = re.search(
+        r"INFOPLIST_FILE\s*=\s*([^\n]+Info\.plist)",
         base_xcconfig.read_text(encoding="utf-8"),
     )
-    if not source_dir_match:
+    if not info_plist_match:
         raise SystemExit("Unable to infer source directory from Configuration/Base.xcconfig.")
+    info_plist_path = info_plist_match.group(1).strip().strip('"')
+    source_dir = Path(info_plist_path).parts[0]
 
     tests_dirs = [
         path.name
@@ -97,7 +103,9 @@ def detect_template_markers(repo_root: Path) -> dict[str, str]:
     return {
         "project_name": project_name,
         "project_module": swift_module_name(project_name),
-        "source_dir": source_dir_match.group(1),
+        "workspace_name": workspace_name,
+        "testplan_name": testplan_name,
+        "source_dir": source_dir,
         "tests_name": tests_dirs[0],
         "tests_module": swift_module_name(tests_dirs[0]),
     }
@@ -148,6 +156,13 @@ def replace_assignment(path: Path, key: str, value: str) -> None:
     path.write_text(updated, encoding="utf-8")
 
 
+def replace_literal(path: Path, old: str, new: str) -> None:
+    content = path.read_text(encoding="utf-8")
+    if old not in content:
+        raise SystemExit(f"Failed to find expected text in {path}: {old}")
+    path.write_text(content.replace(old, new), encoding="utf-8")
+
+
 def ensure_display_name(info_plist: Path, display_name: str) -> None:
     content = info_plist.read_text(encoding="utf-8")
     key_block = "<key>CFBundleDisplayName</key>"
@@ -178,7 +193,9 @@ def rename_path(path: Path, new_name: str) -> Path:
 def copy_local_template(source: Path, destination: Path) -> None:
     if destination.exists():
         raise SystemExit(f"Destination already exists: {destination}")
-    ignore = shutil.ignore_patterns(".git", ".DerivedData", "__pycache__", ".DS_Store")
+    ignore = shutil.ignore_patterns(
+        ".git", ".DerivedData", "__pycache__", ".DS_Store", "xcuserdata"
+    )
     shutil.copytree(source, destination, symlinks=True, ignore=ignore)
 
 
@@ -288,19 +305,24 @@ def main() -> int:
         "PRODUCT_BUNDLE_IDENTIFIER",
         bundle_id,
     )
-    replace_assignment(
-        local_repo_path / "Configuration" / "Test.xcconfig",
-        "PRODUCT_BUNDLE_IDENTIFIER",
-        tests_bundle_id,
-    )
 
     source_dir = local_repo_path / markers["source_dir"]
     tests_dir = local_repo_path / markers["tests_name"]
     xcodeproj_dir = local_repo_path / f'{markers["project_name"]}.xcodeproj'
+    workspace_dir = (
+        local_repo_path / f'{markers["workspace_name"]}.xcworkspace'
+        if markers["workspace_name"]
+        else None
+    )
+    testplan_file = (
+        local_repo_path / f'{markers["testplan_name"]}.xctestplan'
+        if markers["testplan_name"]
+        else None
+    )
 
     renamed_source_dir = rename_path(source_dir, source_dir_name)
     rename_path(tests_dir, tests_name)
-    ensure_display_name(renamed_source_dir / "Info.plist", display_name)
+    ensure_display_name(renamed_source_dir / "Resources" / "Info.plist", display_name)
 
     scheme_path = (
         xcodeproj_dir / "xcshareddata" / "xcschemes" / f'{markers["project_name"]}.xcscheme'
@@ -308,7 +330,16 @@ def main() -> int:
     if scheme_path.exists():
         rename_path(scheme_path, f"{project_name}.xcscheme")
 
-    rename_path(xcodeproj_dir, f"{project_name}.xcodeproj")
+    renamed_project_dir = rename_path(xcodeproj_dir, f"{project_name}.xcodeproj")
+    replace_literal(
+        renamed_project_dir / "project.pbxproj",
+        'PRODUCT_BUNDLE_IDENTIFIER = "com.example.$(PRODUCT_NAME:rfc1034identifier)";',
+        f'PRODUCT_BUNDLE_IDENTIFIER = "{tests_bundle_id}";',
+    )
+    if workspace_dir and workspace_dir.exists():
+        rename_path(workspace_dir, f"{project_name}.xcworkspace")
+    if testplan_file and testplan_file.exists():
+        rename_path(testplan_file, f"{project_name}.xctestplan")
 
     verify_repo(local_repo_path, args.verify)
 
