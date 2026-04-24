@@ -41,11 +41,13 @@ def repo_basename(repo_name: str) -> str:
     return repo_name.split("/")[-1]
 
 
-def humanize_project_name(project_name: str) -> str:
-    parts = re.sub(r"[_-]+", " ", project_name).strip()
-    parts = re.sub(r"(?<!^)([A-Z])", r" \1", parts).strip()
-    parts = re.sub(r"\s+", " ", parts)
-    return " ".join(piece.capitalize() for piece in parts.split())
+def resolve_display_name(project_name: str, display_name: str | None) -> str:
+    if display_name is None:
+        return project_name
+    trimmed = display_name.strip()
+    if not trimmed:
+        raise SystemExit("Display name cannot be empty.")
+    return trimmed
 
 
 def swift_module_name(name: str) -> str:
@@ -393,7 +395,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     project_name = safe_project_name(args.project_name)
-    display_name = args.display_name or humanize_project_name(project_name)
+    display_name = resolve_display_name(project_name, args.display_name)
     bundle_id = args.bundle_id or derive_bundle_id(project_name, args.repo)
     tests_name = f"{project_name}Tests"
     tests_bundle_id = f"{bundle_id}.tests"

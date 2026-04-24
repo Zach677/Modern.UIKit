@@ -53,7 +53,7 @@ python3 scripts/create_project.py \
 ## Input Rules
 
 - `--project-name` is the internal Xcode-facing name. Keep it identifier-safe, for example `ShelfMusic` or `Shelf-Music`.
-- `--display-name` is optional and should only be used when the user wants a spaced marketing name.
+- `--display-name` is optional. When omitted, the app display name stays exactly the same as `--project-name`; pass it only when the user wants a different marketing name such as a spaced name.
 - `--bundle-id` defaults to `com.example.<sanitized-name>` when omitted.
 - `--swift-version` defaults to `5.0`; use `6.0` when the new project should start in Swift 6 language mode.
 - `--verify` defaults to `build`. Use `test` when the user wants stronger validation and the extra runtime is acceptable.
