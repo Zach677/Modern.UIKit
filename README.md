@@ -1,10 +1,23 @@
 # Modern.UIKit
 
-`Modern.UIKit` is a GitHub template repository for starting new UIKit iOS apps with a small but opinionated engineering baseline.
+A GitHub template repository for starting new UIKit iOS apps with a small, opinionated engineering baseline.
+
+![Platform](https://img.shields.io/badge/platform-iOS%2017%2B%20%7C%20Mac%20Catalyst-blue)
+![Swift](https://img.shields.io/badge/Swift-5.0-orange)
+![Xcode](https://img.shields.io/badge/Xcode-26%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 It is intentionally not a framework-heavy architecture preset. The goal is simpler: keep the repetitive setup decisions that usually get re-done poorly, and leave the real app architecture free to grow from there.
 
+## Requirements
+
+- iOS 17.0 or later
+- Xcode 26 or later (validated with Xcode 26.4.1, Build 17E202)
+- Swift 5.0 toolchain
+
 ## What You Get
+
+Core:
 
 - Programmatic UIKit startup through `main.swift`
 - No main storyboard, only `LaunchScreen.storyboard`
@@ -12,9 +25,13 @@ It is intentionally not a framework-heavy architecture preset. The goal is simpl
 - A root `Interface/Root/` shell ready to become the first real screen
 - Shared `xcconfig` build settings instead of hardcoded personal values
 - A small hosted unit test target, `ModernUIKit.xctestplan`, and `make test`
-- Optional LookInside inspection guidance for local debug workflows
+- A `Makefile` + log-aware DevKit scripts as uniform build/test entry points
+
+Optional extras:
+
 - A reusable scaffold skill, `uikit-starter`, for creating fresh apps from this template
-- Optional `AGENTS.md` / `CLAUDE.md` files for agent-driven workflows
+- LookInside inspection guidance for local debug workflows
+- `AGENTS.md` / `CLAUDE.md` files for agent-driven workflows
 
 ## Recommended Ways To Start
 
@@ -41,7 +58,7 @@ What it does:
 If you do not need the skill workflow, use the template repo directly:
 
 ```bash
-gh repo create Zach677/shelf-music \
+gh repo create <your-username>/<your-new-app> \
   --private \
   --template Zach677/Modern.UIKit \
   --clone
@@ -94,14 +111,14 @@ Notes:
 - The `uikit-starter` skill rewrites those placeholders when it scaffolds a real project.
 - If you clone the template manually, those placeholder names are expected until you rename them.
 - The Xcode Tests view comes from `ModernUIKit.xctestplan`, so the scheme has an explicit test plan instead of ad-hoc test target selection.
-- App-bundled resources follow the MuseAmp pattern and live under `ModernUIKit/Resources/`, not beside source files at the app root.
-- Test target settings follow the MuseAmp pattern too: they live in target build settings inside `project.pbxproj`, not in a separate test-only xcconfig file.
+- App-bundled resources live under `ModernUIKit/Resources/`, not beside source files at the app root.
+- Test target settings live in target build settings inside `project.pbxproj`, not in a separate test-only xcconfig file.
 
 ## Local Development
 
 Prerequisites:
 
-- Xcode with Swift Testing and iOS 17 SDK support. The current template was validated with Xcode 26.4.1 (Build 17E202).
+- Xcode with Swift Testing and iOS 17 SDK support (see [Requirements](#requirements)).
 - GitHub CLI (`gh`) for template and skill workflows.
 - Node.js with `npx`, plus Prettier for formatting DevKit output.
 - `xcbeautify` for readable Xcode logs.
@@ -124,19 +141,23 @@ make build-device
 make build-catalyst
 make test
 make test-unit
+make format
+make format-lint
 make package-resolve
+make scan-license
 make strip-xcstrings
 make validate-xcstrings
 make tidy-schemes
+make chore
 make clean
 ```
 
 Defaults:
 
-- `make build` now follows the MuseAmp idea: build the primary app paths you actually care about, here iOS Simulator plus Mac Catalyst.
+- `make build` covers the primary app paths you actually care about: iOS Simulator plus Mac Catalyst.
 - `make test` / `make test-unit` run on the Mac Catalyst destination instead of relying on simulator discovery.
 - `Resources/DevKit/scripts/run_xcodebuild.sh` treats the build log as the source of truth, so `make` stops on real build and test failures even when `xcodebuild` output is misleading.
-- `ModernUIKit.xcworkspace` is the default Xcode entrypoint, not just the `.xcodeproj`.
+- `ModernUIKit.xcworkspace` is the default Xcode entrypoint.
 
 Tooling expectations:
 
@@ -166,7 +187,7 @@ PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.yourapp
 
 ## Testing Notes
 
-The sample app tests now live under `ModernUIKitTests/Application/` and are written in the modern Swift Testing style, which gives you better test discovery inside Xcode and makes the `ModernUIKit.xctestplan` view more useful as the project grows.
+The sample app tests live under `ModernUIKitTests/Application/` and are written in the modern Swift Testing style, which gives you better test discovery inside Xcode and makes the `ModernUIKit.xctestplan` view more useful as the project grows.
 
 ## Optional Debug Inspection
 
@@ -204,14 +225,14 @@ When asking a coding agent to configure LookInside, point it at this section, `A
 
 ## DevKit Scripts
 
-The template now ships with the same DevKit script categories that make MuseAmp useful:
+The template ships with a small set of DevKit scripts:
 
 - `run_xcodebuild.sh` for log-aware build and test execution
 - `strip_stale_xcstrings.py` and `validate_xcstrings.py` for string catalog hygiene
 - `tidy_workspace_schemes.py` for keeping the workspace scheme list sane
 - `scan.license.sh` for package resolution and open source license aggregation
 
-These are lightweight template adaptations, not product-specific policy files.
+These are lightweight template utilities, not product-specific policy files.
 
 ## Acknowledgements
 
@@ -220,3 +241,7 @@ Modern.UIKit is inspired by the engineering discipline in [MuseAmp](https://gith
 ## License
 
 Modern.UIKit is licensed under the MIT License. See `LICENSE` for details.
+
+---
+
+© 2025-2026 @Zach677. Released under the MIT License.
