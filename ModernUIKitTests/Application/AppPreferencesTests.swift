@@ -1,6 +1,6 @@
 import Foundation
-import Testing
 @testable import ModernUIKit
+import Testing
 
 @Suite(.serialized)
 struct AppPreferencesTests {

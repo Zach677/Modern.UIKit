@@ -57,6 +57,7 @@ python3 scripts/create_project.py \
 - `--repo` is required and selects the GitHub repository to create.
 
 ### scripts/
+
 - `scripts/create_project.py` is the source of truth for scaffold execution.
 - Do not hand-rename the cloned template first. Let the script perform the rename pass so project paths, schemes, targets, test bundle names, docs, and config files stay aligned.
 
