@@ -1,11 +1,11 @@
 import UIKit
 
 final class RootViewController: UIViewController {
-    private let appContext: AppContext
+    private let preferences: AppPreferences
     private let subtitleLabel = UILabel()
 
-    init(appContext: AppContext) {
-        self.appContext = appContext
+    init(preferences: AppPreferences) {
+        self.preferences = preferences
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -16,7 +16,7 @@ final class RootViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = appContext.configuration.displayName
+        title = preferences.configuration.displayName
         view.backgroundColor = .systemBackground
         configureLayout()
     }

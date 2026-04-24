@@ -40,6 +40,9 @@ fi
 
 echo "[*] resolving packages..."
 
+rm -rf "$PACKAGE_CLONE_ROOT"
+mkdir -p "$PACKAGE_CLONE_ROOT"
+
 RESOLVE_SCHEMES=("ModernUIKit")
 
 for scheme in "${RESOLVE_SCHEMES[@]}"; do
@@ -113,13 +116,26 @@ function get_correct_package_name {
     fi
 }
 
+function should_skip_license_package {
+    local package_name=$1
+
+    case "$package_name" in
+    LookInside|LookInsideServer|LookinServer|LookinServerDynamic|LookinServerInjected)
+        return 0
+        ;;
+    *)
+        return 1
+        ;;
+    esac
+}
+
 function append_license_file {
     local file=$1
     local package_name
     package_name=$(get_correct_package_name "$(basename "$(dirname "$file")")")
 
-    # skip debug-only tools with incompatible licenses
-    if [[ "$package_name" == "LookInside" ]]; then
+    # Skip optional debug inspection tooling so local setups do not pollute app notices.
+    if should_skip_license_package "$package_name"; then
         return
     fi
 

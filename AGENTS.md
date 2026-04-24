@@ -4,9 +4,10 @@
 
 - This is a pure UIKit iOS starter with programmatic setup.
 - Keep the entry path as `ModernUIKit/Application/main.swift` -> `AppDelegate.swift` -> `SceneDelegate.swift`.
-- `SceneDelegate` owns window creation, bootstraps the shared `AppContext`, and installs the root navigation shell.
+- `SceneDelegate` owns window creation, bootstraps the shared `AppPreferences`, and installs the root navigation shell.
 - `Interface/Root/RootViewController.swift` is the first screen and the seed of the future app shell.
 - Do not introduce SwiftUI into the starter by default. If a real project later chooses SwiftUI, that should be an explicit project decision rather than template drift.
+- LookInside is optional developer tooling. Do not link `LookInsideServer` in the committed app target by default; if a real project adopts it, keep the setup debug-only and out of feature code.
 
 ## Structure Rules
 
@@ -23,7 +24,7 @@
 ### Application Layer
 
 - `Application/` contains only lifecycle, bootstrap, and app-wide configuration types.
-- Keep `AppDelegate.swift`, `SceneDelegate.swift`, `AppContext.swift`, and `AppContext+Bootstrap.swift` in `Application/`.
+- Keep `AppDelegate.swift`, `SceneDelegate.swift`, `AppPreferences.swift`, and `AppPreferences+Bootstrap.swift` in `Application/`.
 - Do not move feature logic, view composition, or network/database code into `Application/`.
 
 ### Interface Layer
@@ -52,8 +53,9 @@
 
 ## Placement Guide
 
-- Thread shared dependencies through `AppContext`.
+- Thread starter-level preferences through `AppPreferences`.
 - Do not introduce new singletons for feature work unless a platform API truly requires it.
+- Do not thread optional LookInside or `LookInsideServer` setup through `AppPreferences`; local inspection tooling should stay developer-scoped unless the project explicitly adopts it.
 - New app services should live under the closest future `Backend/*` subdomain, not directly inside view controllers.
 - Shared UI goes into `Interface/Common/` only when it is clearly cross-feature infrastructure.
 - If a UI type is only used by one feature, keep it inside that feature folder even if it looks reusable.
@@ -64,7 +66,7 @@
 
 ## Dependency Rules
 
-- `AppContext` is the app-level dependency container for this starter.
+- `AppPreferences` is the starter-level preferences/configuration surface.
 - Prefer dependency injection and composition over inheritance and singleton access.
 - UI types should depend on abstractions owned by the app, not construct global runtime state by themselves.
 - Use `FileManager.default` directly for standard file operations. Do not pass `FileManager` around unless a test seam is genuinely needed.
@@ -142,6 +144,7 @@
 - `Resources/DevKit/scripts/run_xcodebuild.sh` is the expected execution path for build and test commands because it validates the log output, not just the shell exit code.
 - `scan.license.sh`, `strip_stale_xcstrings.py`, `validate_xcstrings.py`, and `tidy_workspace_schemes.py` are part of the repository contract, not optional side scripts.
 - `ModernUIKit.xcworkspace` is the expected Xcode entrypoint for interactive work. Do not silently drift back to a project-only workflow.
+- `scan.license.sh` skips optional LookInside debug-tool packages so local inspection checkouts do not pollute app license notices.
 - If a new workflow becomes standard for the template, add a Makefile target for it instead of relying on ad-hoc shell commands.
 - A successful shell exit code is not enough; always read the build log and verify the build actually succeeded without real errors.
 

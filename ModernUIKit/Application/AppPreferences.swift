@@ -5,7 +5,7 @@ struct AppConfiguration {
     let displayName: String
 }
 
-final class AppContext {
+final class AppPreferences {
     let configuration: AppConfiguration
 
     init(configuration: AppConfiguration) {

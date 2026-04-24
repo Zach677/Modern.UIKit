@@ -275,6 +275,7 @@ PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.yourapp
 - Entry stays `main.swift` -> `AppDelegate` -> `SceneDelegate`
 - `LaunchScreen.storyboard` is the only storyboard; there is no `Main.storyboard`
 - App resources live under `{source_dir_name}/Resources/`
+- LookInside is optional local developer tooling; the generated app does not link it by default
 - If the app grows beyond starter scope, add runtime/domain logic under `{source_dir_name}/Backend/`
 """
     (repo_root / "README.md").write_text(content, encoding="utf-8")

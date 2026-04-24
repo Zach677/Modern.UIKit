@@ -1,7 +1,7 @@
 import Foundation
 
-extension AppContext {
-    static func bootstrap(bundle: Bundle = .main) -> AppContext {
+extension AppPreferences {
+    static func bootstrap(bundle: Bundle = .main) -> AppPreferences {
         let bundleIdentifier = bundle.bundleIdentifier ?? "com.example.app"
         let displayName =
             (bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String)?
@@ -14,6 +14,6 @@ extension AppContext {
             bundleIdentifier: bundleIdentifier,
             displayName: displayName
         )
-        return AppContext(configuration: configuration)
+        return AppPreferences(configuration: configuration)
     }
 }

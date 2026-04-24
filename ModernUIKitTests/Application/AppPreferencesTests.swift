@@ -3,19 +3,19 @@ import Testing
 @testable import ModernUIKit
 
 @Suite(.serialized)
-struct AppContextTests {
+struct AppPreferencesTests {
     @Test
     func bootstrapUsesProvidedBundleMetadata() {
         let bundle = Bundle(for: BundleSentinel.self)
 
-        let context = AppContext.bootstrap(bundle: bundle)
+        let preferences = AppPreferences.bootstrap(bundle: bundle)
 
         #expect(
-            context.configuration.bundleIdentifier
+            preferences.configuration.bundleIdentifier
                 == (bundle.bundleIdentifier ?? "com.example.app")
         )
         #expect(
-            !context.configuration.displayName
+            !preferences.configuration.displayName
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .isEmpty
         )
@@ -24,14 +24,14 @@ struct AppContextTests {
     @Test
     func rootViewControllerUsesInjectedDisplayName() async {
         await MainActor.run {
-            let context = AppContext(
+            let preferences = AppPreferences(
                 configuration: AppConfiguration(
                     bundleIdentifier: "com.example.tests",
                     displayName: "Template App"
                 )
             )
 
-            let viewController = RootViewController(appContext: context)
+            let viewController = RootViewController(preferences: preferences)
             viewController.loadViewIfNeeded()
 
             #expect(viewController.title == "Template App")

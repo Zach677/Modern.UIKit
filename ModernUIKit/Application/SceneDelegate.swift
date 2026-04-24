@@ -3,7 +3,7 @@ import UIKit
 @objc(SceneDelegate)
 final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
-    private var appContext: AppContext?
+    private var preferences: AppPreferences?
 
     func scene(
         _ scene: UIScene,
@@ -12,14 +12,14 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ) {
         guard let windowScene = scene as? UIWindowScene else { return }
 
-        let appContext = AppContext.bootstrap()
-        let rootViewController = RootViewController(appContext: appContext)
+        let preferences = AppPreferences.bootstrap()
+        let rootViewController = RootViewController(preferences: preferences)
         let navigationController = UINavigationController(rootViewController: rootViewController)
         let window = UIWindow(windowScene: windowScene)
         window.tintColor = .systemBlue
         window.rootViewController = navigationController
 
-        self.appContext = appContext
+        self.preferences = preferences
         self.window = window
         window.makeKeyAndVisible()
     }

@@ -12,6 +12,7 @@ It is intentionally not a framework-heavy architecture preset. The goal is simpl
 - A root `Interface/Root/` shell ready to become the first real screen
 - Shared `xcconfig` build settings instead of hardcoded personal values
 - A small hosted unit test target, `ModernUIKit.xctestplan`, and `make test`
+- Optional LookInside inspection guidance for local debug workflows
 - A reusable scaffold skill, `uikit-starter`, for creating fresh apps from this template
 - Optional `AGENTS.md` / `CLAUDE.md` files for agent-driven workflows
 
@@ -150,6 +151,12 @@ PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.yourapp
 ## Testing Notes
 
 The sample app tests now live under `ModernUIKitTests/Application/` and are written in the modern Swift Testing style, which gives you better test discovery inside Xcode and makes the `ModernUIKit.xctestplan` view more useful as the project grows.
+
+## Optional Debug Inspection
+
+The template does not link LookInside or `LookInsideServer` by default.
+
+When a concrete app needs local hierarchy inspection, use the LookInside macOS app or CLI with a developer-local setup such as `LookInsideServer` injection or a debug-only app integration. Keep that setup out of feature code and avoid committing it unless the project explicitly chooses LookInside as part of its shared developer workflow.
 
 ## DevKit Scripts
 

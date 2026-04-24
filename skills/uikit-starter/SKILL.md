@@ -26,6 +26,7 @@ description: Create a new GitHub repository and local workspace from the `Zach67
 - Renames the root `.xcodeproj`, `.xcworkspace`, shared scheme, and `.xctestplan` along with the source and test folders.
 - Rewrites the starter docs so the generated repo describes the new app instead of the template itself.
 - The generated repo expects `xcbeautify` on `PATH` and `prettier` available through `npx` for the standard DevKit flows.
+- The generated repo does not link LookInside by default; its docs describe LookInside as optional local developer tooling.
 - Run a quick preflight first:
 
 ```bash
