@@ -15,7 +15,7 @@
 
 - `ModernUIKit/` contains the app target source and resources.
 - `ModernUIKit.xcworkspace/` is the default Xcode entrypoint for the repository.
-- `Configuration/` contains shared Xcode build configuration files (`Base.xcconfig`, `Development.xcconfig`, `Release.xcconfig`, `Version.xcconfig`).
+- `Configuration/` contains shared Xcode build configuration files (`Base.xcconfig`, `Development.xcconfig`, `Release.xcconfig`, `Version.xcconfig`) used by the app target.
 - `Resources/DevKit/scripts/` contains reusable maintenance scripts for build/test log handling, scheme tidying, xcstrings hygiene, and license scanning.
 - `Makefile` is the default shell entry point for local build workflows.
 - `README.md` explains the template contract and local override flow.
@@ -105,12 +105,21 @@
 
 ## Configuration Rules
 
-- Shared build settings belong in `Configuration/*.xcconfig`, not hardcoded directly into the project file unless Xcode requires it.
+- Shared signing, version, and local override settings belong in `Configuration/*.xcconfig`; target/platform settings that Xcode already owns may stay in `project.pbxproj`.
 - Local signing and bundle overrides should go into untracked developer override files:
   - `Configuration/Developer.xcconfig`
   - `Configuration/DevelopmentDeveloper.xcconfig`
   - `Configuration/DeveloperRelease.xcconfig`
 - Do not hardcode personal team IDs, company bundle identifiers, or machine-specific paths into the committed template.
+
+## Localization Rules
+
+- All user-facing strings in the app target use `String(localized:)`.
+- Every target that contains user-facing strings must keep them in a `Localizable.xcstrings` under its `Resources/` directory, currently `ModernUIKit/Resources/Localizable.xcstrings`.
+- When adding or modifying any localized key, update the corresponding `.xcstrings` file in the same change.
+- Each key should include complete localizations for the locales already used by the catalog. For the starter catalog, keep `en` and `zh-Hans` entries complete and preserve positional format specifiers such as `%1$@` or `%2$lld`.
+- Do not leave empty entries, untranslated keys, or orphaned keys in checked-in `.xcstrings` files.
+- Run `make strip-xcstrings` before committing xcstrings edits and `make validate-xcstrings` to gate release-oriented changes.
 
 ## Code Style
 
@@ -118,13 +127,22 @@
 - Use early returns and `guard` to reduce nesting.
 - Prefer value types unless identity or UIKit lifecycle requires a class.
 - Keep comments rare and only where they remove real ambiguity.
-- Avoid unnecessary optionals. If a property has a meaningful default value, use it.
-- Callback closures that are always assigned before use should usually be non-optional with empty defaults.
-- If Combine is introduced, store subscriptions in a single `var cancellables: Set<AnyCancellable> = []` per owner.
+- Avoid unnecessary optionals. If a property can have a meaningful default value, use it instead of making the property optional.
+- If Combine is introduced, store subscriptions in a single `var cancellables: Set<AnyCancellable> = []` per owner and use `.store(in: &cancellables)`.
+- Callback closures that are always assigned before use should be non-optional with an empty default, such as `var onTap: () -> Void = {}`. Avoid optional chaining at call sites for these callbacks.
+- For throttle or cooldown dates, use `Date = .distantPast` instead of `Date?` when a concrete default represents the inactive state.
+- For enum state properties, prefer a concrete default case such as `.idle` over making the property optional.
+- Properties whose values can be derived from other state should be computed properties, not stored.
+- Do not introduce stored properties to track state that is already available from an existing source of truth.
+
+## API Verification
+
+- When using iOS/macOS APIs that are new, recently changed, or unfamiliar, check Apple Developer Documentation before writing the code.
+- Verify availability annotations, parameter signatures, and deprecation status against official docs rather than relying on memory alone.
 
 ## Build & Tooling Rules
 
-- Use the top-level `Makefile` for routine build flows instead of invoking `xcodebuild` directly.
+- Always drive build, test, and SwiftPM package-resolve operations through the top-level `Makefile`. Do not invoke `xcodebuild`, `xcrun xcodebuild`, or `swift test` directly from the shell for routine workflows.
 - Current supported targets:
   - `make build`
   - `make build-ios`
@@ -134,6 +152,9 @@
   - `make test`
   - `make test-unit`
   - `make package-resolve`
+  - `make scan-license`
+  - `make format`
+  - `make format-lint`
   - `make strip-xcstrings`
   - `make validate-xcstrings`
   - `make tidy-schemes`
@@ -141,12 +162,18 @@
   - `make clean`
 - `make build` should cover the primary development paths, currently iOS Simulator and Mac Catalyst.
 - `make test` / `make test-unit` should run on the Mac Catalyst destination by default.
+- `make build-ios` only compiles the app target. To verify test file changes, use `make test`.
 - `Resources/DevKit/scripts/run_xcodebuild.sh` is the expected execution path for build and test commands because it validates the log output, not just the shell exit code.
 - `scan.license.sh`, `strip_stale_xcstrings.py`, `validate_xcstrings.py`, and `tidy_workspace_schemes.py` are part of the repository contract, not optional side scripts.
 - `ModernUIKit.xcworkspace` is the expected Xcode entrypoint for interactive work. Do not silently drift back to a project-only workflow.
+- Package resolution and license refresh use `make package-resolve` or `make scan-license`.
+- Release flows that refresh licenses against an intentionally dirty tree must pass `dirty=1`, for example `make package-resolve dirty=1`; this is forwarded as `ALLOW_DIRTY=1` to the scan script.
+- Manually collected upstream license texts belong under `Resources/AdditionalLicenses/<PackageName>/LICENSE` or `COPYING`. The scanner prefers these files over bundled dependency licenses when both exist.
+- Format with `make format` and check formatting with `make format-lint`; submodules under `Vendor/` and build artifacts are excluded automatically.
+- Localization hygiene uses `make strip-xcstrings` to drop stale keys and sync source-language values, and `make validate-xcstrings` to check stale keys and missing translations across locales already used by the catalog.
 - `scan.license.sh` skips optional LookInside debug-tool packages so local inspection checkouts do not pollute app license notices.
 - If a new workflow becomes standard for the template, add a Makefile target for it instead of relying on ad-hoc shell commands.
-- A successful shell exit code is not enough; always read the build log and verify the build actually succeeded without real errors.
+- A shell exit code of `0` from `make build*` or `make test` is not proof of success. Always read the full log output and verify there are no compiler errors, no real compiler warnings, and for `make test`, every test case reported as passed.
 
 ## LookInside Optional Tooling
 
@@ -172,6 +199,7 @@ lookinside --help
 ## Testing Rules
 
 - The starter ships with a minimal hosted unit test target.
+- The project has a Mac Catalyst destination. Tests can be built and run on Catalyst in addition to iOS simulators.
 - `ModernUIKit.xctestplan` is part of the template contract; keep the shared scheme attached to it so Xcode's Tests UI stays useful from day one.
 - Prefer Swift Testing for new starter tests unless a concrete XCTest-only need exists.
 - Organize tests by feature or subdomain (`Application/`, future `Library/`, `Playback/`, etc.) instead of letting test files pile up at the target root.
@@ -179,7 +207,9 @@ lookinside --help
 - Prefer stable Catalyst-oriented `test-unit` execution over simulator-only convenience paths for the default automated test workflow.
 - Keep tests lightweight enough that the template still feels like a starter rather than a framework.
 - Prefer behavior-focused tests over UI-structure tests.
-- Avoid fragile assertions that only verify titles, tab order, or navigation chrome unless that presentation detail is the actual behavior under test.
+- New tests should validate app behavior, dependency wiring, localization, services, and future feature logic without depending on view titles, tab counts/order, selected tabs, or other presentation-only details.
+- Avoid assertions such as `.title == ...`, `tabs.count == ...`, or similar checks that only verify UIKit configuration text or shell layout unless that presentation detail is the actual behavior under test.
+- When testing UI-adjacent code, prefer asserting observable side effects or state changes rather than labels, tab wiring, or navigation chrome.
 
 ## DevKit Rules
 

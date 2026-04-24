@@ -70,6 +70,16 @@ def derive_bundle_id(project_name: str, repo_name: str | None) -> str:
     return f"com.example.{bundle_component(seed)}"
 
 
+def infer_source_dir(repo_root: Path) -> str:
+    info_plist_paths = sorted(repo_root.glob("*/Resources/Info.plist"))
+    info_plist_paths = [
+        path for path in info_plist_paths if not should_skip(path, repo_root)
+    ]
+    if len(info_plist_paths) != 1:
+        raise SystemExit("Expected exactly one app Resources/Info.plist path.")
+    return info_plist_paths[0].relative_to(repo_root).parts[0]
+
+
 def detect_template_markers(repo_root: Path) -> dict[str, str]:
     project_paths = sorted(repo_root.glob("*.xcodeproj"))
     if len(project_paths) != 1:
@@ -82,15 +92,7 @@ def detect_template_markers(repo_root: Path) -> dict[str, str]:
     testplan_paths = sorted(repo_root.glob("*.xctestplan"))
     testplan_name = testplan_paths[0].stem if len(testplan_paths) == 1 else None
 
-    base_xcconfig = repo_root / "Configuration" / "Base.xcconfig"
-    info_plist_match = re.search(
-        r"INFOPLIST_FILE\s*=\s*([^\n]+Info\.plist)",
-        base_xcconfig.read_text(encoding="utf-8"),
-    )
-    if not info_plist_match:
-        raise SystemExit("Unable to infer source directory from Configuration/Base.xcconfig.")
-    info_plist_path = info_plist_match.group(1).strip().strip('"')
-    source_dir = Path(info_plist_path).parts[0]
+    source_dir = infer_source_dir(repo_root)
 
     tests_dirs = [
         path.name
@@ -279,6 +281,8 @@ By default the app uses a placeholder bundle identifier:
 ```text
 com.example.$(PRODUCT_NAME:rfc1034identifier)
 ```
+
+The base configuration intentionally keeps signing and bundle overrides in `Configuration/*.xcconfig`; target and platform settings stay with the Xcode project unless they need a local override.
 
 If you need local signing values without committing them, create one or more of:
 

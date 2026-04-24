@@ -23,7 +23,7 @@ Core:
 - No main storyboard, only `LaunchScreen.storyboard`
 - A dedicated `Application/` layer for lifecycle and bootstrap
 - A root `Interface/Root/` shell ready to become the first real screen
-- Shared `xcconfig` build settings instead of hardcoded personal values
+- Shared `xcconfig` signing/version settings instead of hardcoded personal values
 - A small hosted unit test target, `ModernUIKit.xctestplan`, and `make test`
 - A `Makefile` + log-aware DevKit scripts as uniform build/test entry points
 
@@ -171,6 +171,8 @@ By default the template uses a placeholder bundle identifier:
 ```text
 com.example.$(PRODUCT_NAME:rfc1034identifier)
 ```
+
+The base configuration intentionally keeps signing and bundle overrides in `Configuration/*.xcconfig`; target and platform settings stay with the Xcode project unless they need a local override.
 
 If you need local signing values without committing them, create one or more of:
 
