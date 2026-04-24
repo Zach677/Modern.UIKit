@@ -158,6 +158,16 @@ def replace_assignment(path: Path, key: str, value: str) -> None:
     path.write_text(updated, encoding="utf-8")
 
 
+def replace_build_setting(path: Path, key: str, value: str) -> None:
+    content = path.read_text(encoding="utf-8")
+    pattern = rf"(\b{re.escape(key)}\s*=\s*)[^;]+;"
+    replacement = rf"\g<1>{value};"
+    updated, count = re.subn(pattern, replacement, content)
+    if count == 0:
+        raise SystemExit(f"Failed to update {key} in {path}.")
+    path.write_text(updated, encoding="utf-8")
+
+
 def replace_literal(path: Path, old: str, new: str) -> None:
     content = path.read_text(encoding="utf-8")
     if old not in content:
@@ -207,6 +217,7 @@ def write_generated_readme(
     display_name: str,
     source_dir_name: str,
     tests_name: str,
+    swift_version: str,
 ) -> None:
     content = f"""# {display_name}
 
@@ -244,6 +255,7 @@ Defaults:
 
 - `make build` covers the primary development paths: iOS Simulator plus Mac Catalyst
 - `make test` / `make test-unit` run on the Mac Catalyst destination
+- The project uses Swift {swift_version} language mode
 - `Resources/DevKit/scripts/run_xcodebuild.sh` treats the build log as the source of truth instead of trusting exit codes alone
 
 Tooling expectations:
@@ -359,6 +371,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--template-repo", default=DEFAULT_TEMPLATE_REPO)
     parser.add_argument("--bundle-id")
     parser.add_argument("--source-dir-name")
+    parser.add_argument(
+        "--swift-version",
+        choices=["5.0", "6.0"],
+        default="5.0",
+    )
     parser.add_argument("--parent-dir", default=".")
     parser.add_argument(
         "--visibility",
@@ -434,6 +451,7 @@ def main() -> int:
         display_name=display_name,
         source_dir_name=source_dir_name,
         tests_name=tests_name,
+        swift_version=args.swift_version,
     )
 
     scheme_path = (
@@ -443,6 +461,11 @@ def main() -> int:
         rename_path(scheme_path, f"{project_name}.xcscheme")
 
     renamed_project_dir = rename_path(xcodeproj_dir, f"{project_name}.xcodeproj")
+    replace_build_setting(
+        renamed_project_dir / "project.pbxproj",
+        "SWIFT_VERSION",
+        args.swift_version,
+    )
     replace_literal(
         renamed_project_dir / "project.pbxproj",
         'PRODUCT_BUNDLE_IDENTIFIER = "com.example.$(PRODUCT_NAME:rfc1034identifier)";',
@@ -458,6 +481,7 @@ def main() -> int:
     print(f"Created project at: {local_repo_path}")
     print(f"Project name: {project_name}")
     print(f"Display name: {display_name}")
+    print(f"Swift language mode: {args.swift_version}")
     print(f"Bundle identifier: {bundle_id}")
     return 0
 

@@ -12,6 +12,7 @@ description: Create a new GitHub repository and local workspace from the `Zach67
    - optional display name, for example `Shelf Music`
    - GitHub repo name (`owner/repo` or `repo`)
    - bundle identifier if the default `com.example.*` value is not acceptable
+   - Swift language mode: `5.0` by default, or `6.0` for projects that want stricter compiler checks from day one
    - verification level: `build` by default, `test` for stronger validation
 2. Use GitHub-backed mode; local-copy mode is no longer a supported workflow.
 3. Run `scripts/create_project.py` with the chosen arguments.
@@ -43,6 +44,7 @@ python3 scripts/create_project.py \
   --display-name "Shelf Music" \
   --repo Zach677/shelf-music \
   --bundle-id com.zach.shelfmusic \
+  --swift-version 6.0 \
   --visibility private \
   --parent-dir ~/Developer \
   --verify build
@@ -53,6 +55,7 @@ python3 scripts/create_project.py \
 - `--project-name` is the internal Xcode-facing name. Keep it identifier-safe, for example `ShelfMusic` or `Shelf-Music`.
 - `--display-name` is optional and should only be used when the user wants a spaced marketing name.
 - `--bundle-id` defaults to `com.example.<sanitized-name>` when omitted.
+- `--swift-version` defaults to `5.0`; use `6.0` when the new project should start in Swift 6 language mode.
 - `--verify` defaults to `build`. Use `test` when the user wants stronger validation and the extra runtime is acceptable.
 - `--repo` is required and selects the GitHub repository to create.
 

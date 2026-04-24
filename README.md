@@ -3,8 +3,8 @@
 A GitHub template repository for starting new UIKit iOS apps with a small, opinionated engineering baseline.
 
 ![Platform](https://img.shields.io/badge/platform-iOS%2017%2B%20%7C%20Mac%20Catalyst-blue)
-![Swift](https://img.shields.io/badge/Swift-5.0-orange)
-![Xcode](https://img.shields.io/badge/Xcode-26%2B-blue)
+![Swift](https://img.shields.io/badge/Swift-5.0%20default%20%7C%206.0%20optional-orange)
+![Xcode](https://img.shields.io/badge/Xcode-iOS%2017%20SDK%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 It is intentionally not a framework-heavy architecture preset. The goal is simpler: keep the repetitive setup decisions that usually get re-done poorly, and leave the real app architecture free to grow from there.
@@ -12,8 +12,10 @@ It is intentionally not a framework-heavy architecture preset. The goal is simpl
 ## Requirements
 
 - iOS 17.0 or later
-- Xcode 26 or later (validated with Xcode 26.4.1, Build 17E202)
-- Swift 5.0 toolchain
+- Xcode with iOS 17 SDK and Swift Testing support
+- Swift 5.0 language mode by default, with Swift 6.0 available when scaffolding a new project
+
+Maintainer validation currently runs with Xcode 26.4.1, Build 17E202.
 
 ## What You Get
 
@@ -51,6 +53,7 @@ What it does:
 - clones it locally
 - renames the Xcode project, workspace, schemes, xctestplan, source folders, and test target
 - updates bundle identifiers and display name
+- lets you choose Swift 5.0 or Swift 6.0 language mode
 - runs `make build` or `make test` for verification
 
 ### 2. Use the GitHub template directly
@@ -76,6 +79,12 @@ This repo is meant to preserve a few high-value decisions:
 - build and test entry points are uniform
 
 That is enough to make a new UIKit app feel engineered from the start, without forcing a full product architecture too early.
+
+## Swift Language Mode
+
+The checked-in template defaults to `SWIFT_VERSION = 5.0` for broad compatibility. When creating a new project through `uikit-starter`, choose `--swift-version 5.0` or `--swift-version 6.0` based on the app's tolerance for newer compiler diagnostics.
+
+Swift 6.0 is a good choice when the project wants stricter language checks from the start. Swift 5.0 remains the conservative default for teams that want the widest Xcode compatibility and fewer migration decisions on day one.
 
 ## Repository Layout
 
