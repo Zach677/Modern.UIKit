@@ -99,6 +99,21 @@ Notes:
 
 ## Local Development
 
+Prerequisites:
+
+- Xcode with Swift Testing and iOS 17 SDK support. The current template was validated with Xcode 26.4.1 (Build 17E202).
+- GitHub CLI (`gh`) for template and skill workflows.
+- Node.js with `npx`, plus Prettier for formatting DevKit output.
+- `xcbeautify` for readable Xcode logs.
+- `swiftformat` for `make format` and `make format-lint`.
+
+Recommended setup:
+
+```bash
+brew install gh node xcbeautify swiftformat
+npm install -g prettier
+```
+
 Build and test through the top-level `Makefile`:
 
 ```bash
@@ -197,3 +212,11 @@ The template now ships with the same DevKit script categories that make MuseAmp 
 - `scan.license.sh` for package resolution and open source license aggregation
 
 These are lightweight template adaptations, not product-specific policy files.
+
+## Acknowledgements
+
+Modern.UIKit is inspired by the engineering discipline in [MuseAmp](https://github.com/Lakr233/MuseAmp), especially its workspace-first Xcode workflow, DevKit-style maintenance scripts, test-plan setup, and log-aware build/test automation. This template keeps those ideas lightweight for new UIKit apps and does not copy MuseAmp's product code or app-specific architecture.
+
+## License
+
+Modern.UIKit is licensed under the MIT License. See `LICENSE` for details.

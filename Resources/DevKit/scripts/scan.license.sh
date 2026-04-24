@@ -52,6 +52,12 @@ for scheme in "${RESOLVE_SCHEMES[@]}"; do
         -workspace *.xcworkspace \
         -scheme "$scheme" |
         xcbeautify --disable-colored-output --disable-logging
+    resolve_status=${pipestatus[1]}
+
+    if [[ $resolve_status -ne 0 ]]; then
+        echo "[!] failed to resolve packages for scheme: $scheme"
+        exit "$resolve_status"
+    fi
 done
 
 echo "[*] scanning licenses..."
