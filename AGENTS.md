@@ -148,6 +148,27 @@
 - If a new workflow becomes standard for the template, add a Makefile target for it instead of relying on ad-hoc shell commands.
 - A successful shell exit code is not enough; always read the build log and verify the build actually succeeded without real errors.
 
+## LookInside Optional Tooling
+
+- Treat LookInside as optional local developer capability, not starter architecture.
+- Do not commit `LookInsideServer` package wiring, app startup calls, or generated `Package.resolved` entries unless Zach explicitly asks to adopt LookInside as shared project tooling.
+- A coding agent asked to configure LookInside should verify the macOS app and CLI first:
+
+```bash
+brew install --cask Zach677/star/lookinside
+git clone https://github.com/LookInsideApp/LookInsideServer.git ~/Developer/other-repo/LookInsideServer
+cd ~/Developer/other-repo/LookInsideServer
+swift build -c release --product lookinside
+mkdir -p ~/.local/bin
+ln -sfn "$PWD/.build/release/lookinside" ~/.local/bin/lookinside
+lookinside --help
+```
+
+- `brew install Zach677/star/lookinside-cli` is acceptable when the tap version is fresh enough; source builds from `LookInsideApp/LookInsideServer` are preferred when matching the latest runtime and CLI matters.
+- A target only appears in `lookinside list` after the app runs `LookinServer` or a compatible injected runtime. If no target appears, report that state instead of silently adding committed app dependencies.
+- Use `lookinside list`, `lookinside inspect`, `lookinside hierarchy`, and `lookinside export` for agent-readable inspection artifacts.
+- `scan.license.sh` intentionally skips optional LookInside debug-tool packages so local inspection checkouts do not pollute app license notices.
+
 ## Testing Rules
 
 - The starter ships with a minimal hosted unit test target.

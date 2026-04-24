@@ -249,6 +249,29 @@ Tooling expectations:
 - `xcbeautify` should be available on `PATH`
 - `prettier` should be available for DevKit formatting flows; the repo invokes it through `npx --yes prettier ...`
 
+## Optional Debug Inspection
+
+LookInside is optional local developer tooling. This app does not link `LookInsideServer` by default.
+
+Manual local setup:
+
+```bash
+brew install --cask Zach677/star/lookinside
+
+git clone https://github.com/LookInsideApp/LookInsideServer.git ~/Developer/other-repo/LookInsideServer
+cd ~/Developer/other-repo/LookInsideServer
+swift build -c release --product lookinside
+mkdir -p ~/.local/bin
+ln -sfn "$PWD/.build/release/lookinside" ~/.local/bin/lookinside
+
+lookinside --help
+lookinside list --format json
+```
+
+A target only appears in `lookinside list` after the app runs `LookinServer` or a compatible injected runtime. Keep that setup developer-local or debug-only unless the project explicitly adopts LookInside as shared tooling.
+
+If a coding agent configures LookInside, ask it to follow `AGENTS.md` and the `lookinside-cli` skill, verify the local app and CLI, and avoid committing `LookInsideServer` app wiring unless you explicitly request it.
+
 ## Local Signing Overrides
 
 By default the app uses a placeholder bundle identifier:

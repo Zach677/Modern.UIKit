@@ -154,9 +154,37 @@ The sample app tests now live under `ModernUIKitTests/Application/` and are writ
 
 ## Optional Debug Inspection
 
-The template does not link LookInside or `LookInsideServer` by default.
+LookInside is optional local developer tooling. The template does not link LookInside or `LookInsideServer` by default, so the checked-in app target stays free of debug-inspection dependencies.
 
-When a concrete app needs local hierarchy inspection, use the LookInside macOS app or CLI with a developer-local setup such as `LookInsideServer` injection or a debug-only app integration. Keep that setup out of feature code and avoid committing it unless the project explicitly chooses LookInside as part of its shared developer workflow.
+Manual local setup:
+
+```bash
+brew install --cask Zach677/star/lookinside
+
+git clone https://github.com/LookInsideApp/LookInsideServer.git ~/Developer/other-repo/LookInsideServer
+cd ~/Developer/other-repo/LookInsideServer
+swift build -c release --product lookinside
+mkdir -p ~/.local/bin
+ln -sfn "$PWD/.build/release/lookinside" ~/.local/bin/lookinside
+
+lookinside --help
+lookinside list --format json
+```
+
+If the Homebrew tap version is fresh enough for your use case, `brew install Zach677/star/lookinside-cli` is a shorter CLI install path. Building from `LookInsideApp/LookInsideServer` is preferred when you want the CLI and embeddable runtime to match the current upstream checkout.
+
+A target app only appears in `lookinside list` after it runs `LookinServer` or a compatible injected runtime. For this starter, keep that setup developer-local or debug-only unless the project explicitly adopts LookInside as shared tooling.
+
+Common CLI commands after a debuggable target is running:
+
+```bash
+lookinside list --format json
+lookinside inspect --target <id> --format json
+lookinside hierarchy --target <id> --output /tmp/app-hierarchy.txt
+lookinside export --target <id> --output /tmp/app.lookinside
+```
+
+When asking a coding agent to configure LookInside, point it at this section, `AGENTS.md`, and the `lookinside-cli` skill. The agent should install or verify the local app and CLI, then report clearly if no target is discoverable because the app has not opted into a debug server.
 
 ## DevKit Scripts
 

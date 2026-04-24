@@ -27,6 +27,7 @@ description: Create a new GitHub repository and local workspace from the `Zach67
 - Rewrites the starter docs so the generated repo describes the new app instead of the template itself.
 - The generated repo expects `xcbeautify` on `PATH` and `prettier` available through `npx` for the standard DevKit flows.
 - The generated repo does not link LookInside by default; its docs describe LookInside as optional local developer tooling.
+- If the user asks to configure LookInside, install or verify the local app and CLI, but do not add committed `LookInsideServer` runtime wiring unless they explicitly request shared debug tooling.
 - Run a quick preflight first:
 
 ```bash
@@ -64,4 +65,5 @@ python3 scripts/create_project.py \
 - The skill assumes the template repository is `Zach677/Modern.UIKit` unless the caller overrides it.
 - The script rewrites the template placeholder names automatically and removes template-only scaffolding from the generated repo, so the skill should not rely on the checked-in internal names in user-facing conversation.
 - Generated repos do not keep fallback branches for missing `xcbeautify` / `prettier`; install those tools as part of the local setup.
+- Generated README files include a LookInside setup section for both manual setup and coding-agent setup; treat it as optional developer tooling, not app architecture.
 - If the user wants this skill to be auto-discoverable on the current machine, install it under `~/.codex/skills`, preferably via symlink to the repo copy.
