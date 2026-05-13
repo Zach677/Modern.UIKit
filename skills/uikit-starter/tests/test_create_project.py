@@ -46,6 +46,24 @@ class GeneratedReadmeTests(unittest.TestCase):
         self.assertIn("make run-ios", content)
         self.assertIn("install it on the booted simulator, and launch it", content)
 
+    def test_generated_readme_documents_narrow_base_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            create_project.write_generated_readme(
+                repo_root=repo_root,
+                project_name="CapArt",
+                display_name="CapArt",
+                source_dir_name="CapArt",
+                tests_name="CapArtTests",
+                swift_version="6.0",
+            )
+
+            content = (repo_root / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn("`Configuration/Base.xcconfig` is intentionally narrow", content)
+        self.assertIn("leaves target/platform settings", content)
+        self.assertIn("`SWIFT_VERSION`", content)
+
 
 if __name__ == "__main__":
     unittest.main()

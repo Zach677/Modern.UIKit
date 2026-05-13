@@ -105,7 +105,9 @@
 
 ## Configuration Rules
 
-- Shared signing, version, and local override settings belong in `Configuration/*.xcconfig`; target/platform settings that Xcode already owns may stay in `project.pbxproj`.
+- Keep `Configuration/Base.xcconfig` narrow and benchmark-aligned: it should include `Version.xcconfig` and own signing/provisioning plus the app bundle identifier.
+- Keep version values in `Configuration/Version.xcconfig`.
+- Keep target/platform settings that Xcode already owns, such as `PRODUCT_NAME`, `SWIFT_VERSION`, deployment targets, supported platforms, and Info.plist wiring, in `project.pbxproj`.
 - Local signing and bundle overrides should go into untracked developer override files:
   - `Configuration/Developer.xcconfig`
   - `Configuration/DevelopmentDeveloper.xcconfig`

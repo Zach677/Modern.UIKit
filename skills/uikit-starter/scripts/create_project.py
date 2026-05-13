@@ -299,7 +299,7 @@ By default the app uses a placeholder bundle identifier:
 com.example.$(PRODUCT_NAME:rfc1034identifier)
 ```
 
-The base configuration intentionally keeps signing and bundle overrides in `Configuration/*.xcconfig`; target and platform settings stay with the Xcode project unless they need a local override.
+`Configuration/Base.xcconfig` is intentionally narrow. It includes `Configuration/Version.xcconfig`, owns signing/provisioning and the app bundle identifier, and leaves target/platform settings such as `PRODUCT_NAME`, `SWIFT_VERSION`, deployment targets, supported platforms, and Info.plist wiring in the Xcode project.
 
 If you need local signing values without committing them, create one or more of:
 
