@@ -244,6 +244,8 @@ make build-ios
 make build-sim
 make build-device
 make build-catalyst
+make run-ios
+make run-sim
 make test
 make test-unit
 make package-resolve
@@ -256,6 +258,7 @@ make clean
 Defaults:
 
 - `make build` covers the primary development paths: iOS Simulator plus Mac Catalyst
+- `make run-ios` / `make run-sim` build the simulator app, install it on the booted simulator, and launch it
 - `make test` / `make test-unit` run on the Mac Catalyst destination
 - The project uses Swift {swift_version} language mode
 - `Resources/DevKit/scripts/run_xcodebuild.sh` treats the build log as the source of truth instead of trusting exit codes alone

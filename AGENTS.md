@@ -149,6 +149,8 @@
   - `make build-sim`
   - `make build-device`
   - `make build-catalyst`
+  - `make run-ios`
+  - `make run-sim`
   - `make test`
   - `make test-unit`
   - `make package-resolve`
@@ -161,6 +163,7 @@
   - `make chore`
   - `make clean`
 - `make build` should cover the primary development paths, currently iOS Simulator and Mac Catalyst.
+- `make run-ios` / `make run-sim` should build the simulator app, install it on the booted simulator, and launch it without replacing the normal build/test gates.
 - `make test` / `make test-unit` should run on the Mac Catalyst destination by default.
 - `make build-ios` only compiles the app target. To verify test file changes, use `make test`.
 - `Resources/DevKit/scripts/run_xcodebuild.sh` is the expected execution path for build and test commands because it validates the log output, not just the shell exit code.

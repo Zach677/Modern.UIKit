@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -25,6 +26,25 @@ class DisplayNameTests(unittest.TestCase):
     def test_blank_display_name_is_rejected(self) -> None:
         with self.assertRaises(SystemExit):
             create_project.resolve_display_name("CapArt", "   ")
+
+
+class GeneratedReadmeTests(unittest.TestCase):
+    def test_generated_readme_documents_run_ios_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            create_project.write_generated_readme(
+                repo_root=repo_root,
+                project_name="CapArt",
+                display_name="CapArt",
+                source_dir_name="CapArt",
+                tests_name="CapArtTests",
+                swift_version="6.0",
+            )
+
+            content = (repo_root / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn("make run-ios", content)
+        self.assertIn("install it on the booted simulator, and launch it", content)
 
 
 if __name__ == "__main__":

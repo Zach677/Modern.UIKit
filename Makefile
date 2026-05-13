@@ -16,6 +16,8 @@ DERIVED_DATA   ?= $(ROOT_DIR)/.DerivedData
 BUILD_HOME      := $(DERIVED_DATA)/home
 XDG_CACHE_HOME  := $(DERIVED_DATA)/xdg-cache
 MODULE_CACHE    := $(DERIVED_DATA)/ModuleCache.noindex
+SIMULATOR_APP   := $(DERIVED_DATA)/Build/Products/$(CONFIGURATION)-iphonesimulator/$(IOS_SCHEME).app
+SIMULATOR_DEVICE ?= booted
 
 HOST_ARCH := $(shell uname -m)
 
@@ -51,6 +53,7 @@ XCODEBUILD := $(XCODEBUILD_WRAPPER) \
 
 .PHONY: all help \
         build build-ios build-sim build-device build-catalyst \
+        run-ios run-sim \
         test test-unit \
         package-resolve scan-license \
         format format-lint \
@@ -71,6 +74,8 @@ help:
 	@echo "  build-sim          Build the app for iOS Simulator"
 	@echo "  build-device       Build the app for a generic iOS device"
 	@echo "  build-catalyst     Build the app for Mac Catalyst"
+	@echo "  run-ios            Build, install, and launch on the booted iOS Simulator"
+	@echo "  run-sim            Alias for run-ios"
 	@echo ""
 	@echo "Test:"
 	@echo "  test               Run the full test suite on Mac Catalyst"
@@ -126,6 +131,15 @@ build-catalyst:
 	    -destination "$(CATALYST_DESTINATION)" \
 	    SUPPORTS_MACCATALYST=YES \
 	    build
+
+run-sim: run-ios
+
+run-ios: build-sim
+	test -d "$(SIMULATOR_APP)"
+	xcrun simctl bootstatus "$(SIMULATOR_DEVICE)" -b
+	xcrun simctl install "$(SIMULATOR_DEVICE)" "$(SIMULATOR_APP)"
+	BUNDLE_ID=$$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$(SIMULATOR_APP)/Info.plist"); \
+	    xcrun simctl launch "$(SIMULATOR_DEVICE)" "$$BUNDLE_ID"
 
 # =============================================================================
 # Test
