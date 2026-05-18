@@ -12,6 +12,7 @@ description: Create a new GitHub repository and local workspace from the `Zach67
    - optional display name, for example `Shelf Music`
    - GitHub repo name (`owner/repo` or `repo`)
    - bundle identifier if the default `com.example.*` value is not acceptable
+   - Apple Developer Team ID if the generated app should commit a shared signing identity
    - Swift language mode: `5.0` by default, or `6.0` for projects that want stricter compiler checks from day one
    - verification level: `build` by default, `test` for stronger validation
 2. Use GitHub-backed mode; local-copy mode is no longer a supported workflow.
@@ -44,6 +45,7 @@ python3 scripts/create_project.py \
   --display-name "Shelf Music" \
   --repo Zach677/shelf-music \
   --bundle-id com.zach.shelfmusic \
+  --development-team S56VW4D8X4 \
   --swift-version 6.0 \
   --visibility private \
   --parent-dir ~/Developer \
@@ -55,6 +57,7 @@ python3 scripts/create_project.py \
 - `--project-name` is the internal Xcode-facing name. Keep it identifier-safe, for example `ShelfMusic` or `Shelf-Music`.
 - `--display-name` is optional. When omitted, the app display name stays exactly the same as `--project-name`; pass it only when the user wants a different marketing name such as a spaced name.
 - `--bundle-id` defaults to `com.example.<sanitized-name>` when omitted.
+- `--development-team` is optional. Use it for personal or single-team apps that should commit the shared Apple Developer Team ID in `Configuration/Base.xcconfig`; omit it when the generated repo should stay team-neutral and rely on local developer overrides.
 - `--swift-version` defaults to `5.0`; use `6.0` when the new project should start in Swift 6 language mode.
 - `--verify` defaults to `build`. Use `test` when the user wants stronger validation and the extra runtime is acceptable.
 - `--repo` is required and selects the GitHub repository to create.

@@ -106,6 +106,9 @@
 ## Configuration Rules
 
 - Keep `Configuration/Base.xcconfig` narrow and benchmark-aligned: it should include `Version.xcconfig` and own signing/provisioning plus the app bundle identifier.
+- Keep the template itself team-neutral by leaving `DEVELOPMENT_TEAM` empty in `Configuration/Base.xcconfig`.
+- For generated personal or single-team app projects, prefer committing the shared Apple Developer Team ID in the generated app's `Configuration/Base.xcconfig`, matching MuseAmp-style signing, so Xcode's Signing & Capabilities view resolves the Team from build settings.
+- For generated reusable templates, forks, or projects that intentionally avoid a shared signing identity, keep `DEVELOPMENT_TEAM` empty in committed files and use the untracked developer override files below.
 - Keep version values in `Configuration/Version.xcconfig`.
 - Keep target/platform settings that Xcode already owns, such as `PRODUCT_NAME`, `SWIFT_VERSION`, deployment targets, supported platforms, and Info.plist wiring, in `project.pbxproj`.
 - Local signing and bundle overrides should go into untracked developer override files:

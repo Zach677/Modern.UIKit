@@ -176,9 +176,9 @@ Tooling expectations:
 - `xcbeautify` should be available on `PATH` for the Xcode and package-resolution workflows.
 - `prettier` should be available for DevKit formatting flows; the repository invokes it through `npx --yes prettier ...`.
 
-## Local Signing Overrides
+## Signing Configuration
 
-By default the template uses a placeholder bundle identifier:
+By default the template is team-neutral and uses a placeholder bundle identifier:
 
 ```text
 com.example.$(PRODUCT_NAME:rfc1034identifier)
@@ -186,7 +186,9 @@ com.example.$(PRODUCT_NAME:rfc1034identifier)
 
 `Configuration/Base.xcconfig` is intentionally narrow. It includes `Configuration/Version.xcconfig`, owns signing/provisioning and the app bundle identifier, and leaves target/platform settings such as `PRODUCT_NAME`, `SWIFT_VERSION`, deployment targets, supported platforms, and Info.plist wiring in the Xcode project.
 
-If you need local signing values without committing them, create one or more of:
+For a generated personal or single-team app, commit the shared Apple Developer Team ID in the generated app's `Configuration/Base.xcconfig` so Xcode's Signing & Capabilities view resolves the Team from build settings. The `uikit-starter` script writes that value when `--development-team` is passed.
+
+If a generated project should stay team-neutral, or if you need local signing values without committing them, create one or more of:
 
 - `Configuration/Developer.xcconfig`
 - `Configuration/DevelopmentDeveloper.xcconfig`

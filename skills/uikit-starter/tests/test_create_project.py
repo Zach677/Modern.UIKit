@@ -38,6 +38,8 @@ class GeneratedReadmeTests(unittest.TestCase):
                 display_name="CapArt",
                 source_dir_name="CapArt",
                 tests_name="CapArtTests",
+                bundle_id="com.zach.capart",
+                development_team=None,
                 swift_version="6.0",
             )
 
@@ -55,6 +57,8 @@ class GeneratedReadmeTests(unittest.TestCase):
                 display_name="CapArt",
                 source_dir_name="CapArt",
                 tests_name="CapArtTests",
+                bundle_id="com.zach.capart",
+                development_team=None,
                 swift_version="6.0",
             )
 
@@ -63,6 +67,26 @@ class GeneratedReadmeTests(unittest.TestCase):
         self.assertIn("`Configuration/Base.xcconfig` is intentionally narrow", content)
         self.assertIn("leaves target/platform settings", content)
         self.assertIn("`SWIFT_VERSION`", content)
+
+    def test_generated_readme_documents_committed_development_team(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            create_project.write_generated_readme(
+                repo_root=repo_root,
+                project_name="CapArt",
+                display_name="CapArt",
+                source_dir_name="CapArt",
+                tests_name="CapArtTests",
+                bundle_id="com.zach.capart",
+                development_team="S56VW4D8X4",
+                swift_version="6.0",
+            )
+
+            content = (repo_root / "README.md").read_text(encoding="utf-8")
+
+        self.assertIn("DEVELOPMENT_TEAM = S56VW4D8X4", content)
+        self.assertIn("PRODUCT_BUNDLE_IDENTIFIER = com.zach.capart", content)
+        self.assertIn("Signing & Capabilities", content)
 
 
 if __name__ == "__main__":

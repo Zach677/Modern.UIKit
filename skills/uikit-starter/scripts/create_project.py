@@ -219,6 +219,8 @@ def write_generated_readme(
     display_name: str,
     source_dir_name: str,
     tests_name: str,
+    bundle_id: str,
+    development_team: str | None,
     swift_version: str,
 ) -> None:
     content = f"""# {display_name}
@@ -291,15 +293,18 @@ A target only appears in `lookinside list` after the app runs `LookinServer` or 
 
 If a coding agent configures LookInside, ask it to follow `AGENTS.md` and the `lookinside-cli` skill, verify the local app and CLI, and avoid committing `LookInsideServer` app wiring unless you explicitly request it.
 
-## Local Signing Overrides
+## Signing Configuration
 
-By default the app uses a placeholder bundle identifier:
+The app uses these shared signing defaults in `Configuration/Base.xcconfig`:
 
-```text
-com.example.$(PRODUCT_NAME:rfc1034identifier)
+```xcconfig
+DEVELOPMENT_TEAM = {development_team or ""}
+PRODUCT_BUNDLE_IDENTIFIER = {bundle_id}
 ```
 
 `Configuration/Base.xcconfig` is intentionally narrow. It includes `Configuration/Version.xcconfig`, owns signing/provisioning and the app bundle identifier, and leaves target/platform settings such as `PRODUCT_NAME`, `SWIFT_VERSION`, deployment targets, supported platforms, and Info.plist wiring in the Xcode project.
+
+For personal or single-team products, commit the shared Apple Developer Team ID there so Xcode's Signing & Capabilities view resolves the Team from build settings. If the project should stay team-neutral, leave `DEVELOPMENT_TEAM` empty in `Base.xcconfig`.
 
 If you need local signing values without committing them, create one or more of:
 
@@ -375,6 +380,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repo", required=True)
     parser.add_argument("--template-repo", default=DEFAULT_TEMPLATE_REPO)
     parser.add_argument("--bundle-id")
+    parser.add_argument("--development-team")
     parser.add_argument("--source-dir-name")
     parser.add_argument(
         "--swift-version",
@@ -400,6 +406,11 @@ def main() -> int:
     project_name = safe_project_name(args.project_name)
     display_name = resolve_display_name(project_name, args.display_name)
     bundle_id = args.bundle_id or derive_bundle_id(project_name, args.repo)
+    development_team = (
+        args.development_team.strip() if args.development_team is not None else None
+    )
+    if development_team == "":
+        raise SystemExit("Development team cannot be empty.")
     tests_name = f"{project_name}Tests"
     tests_bundle_id = f"{bundle_id}.tests"
 
@@ -431,6 +442,12 @@ def main() -> int:
         "PRODUCT_BUNDLE_IDENTIFIER",
         bundle_id,
     )
+    if development_team is not None:
+        replace_assignment(
+            local_repo_path / "Configuration" / "Base.xcconfig",
+            "DEVELOPMENT_TEAM",
+            development_team,
+        )
 
     source_dir = local_repo_path / markers["source_dir"]
     tests_dir = local_repo_path / markers["tests_name"]
@@ -456,6 +473,8 @@ def main() -> int:
         display_name=display_name,
         source_dir_name=source_dir_name,
         tests_name=tests_name,
+        bundle_id=bundle_id,
+        development_team=development_team,
         swift_version=args.swift_version,
     )
 
@@ -488,6 +507,7 @@ def main() -> int:
     print(f"Display name: {display_name}")
     print(f"Swift language mode: {args.swift_version}")
     print(f"Bundle identifier: {bundle_id}")
+    print(f"Development team: {development_team or '(not set)'}")
     return 0
 
 
