@@ -46,9 +46,11 @@ class RepositoryProfile:
 @dataclass(frozen=True)
 class AdoptionPlan:
     mode: str
+    scenario: str
     status: str
     summary: str
     recommended_questions: list[str]
+    recommended_next_actions: list[str]
     proposed_changes: list[str]
     preserved_by_default: list[str]
     blockers: list[str]
@@ -353,12 +355,19 @@ def build_plan(profile: RepositoryProfile) -> AdoptionPlan:
 
     if profile.has_tuist:
         mode = "tuist-migration-assisted"
+        if profile.has_swiftui_entry:
+            scenario = "tuist-swiftui-guided-decision"
+        else:
+            scenario = "tuist-source-preserving-baseline"
     elif profile.has_swiftui_entry and not profile.has_uikit_lifecycle:
         mode = "swiftui-migration-assisted"
+        scenario = "xcode-swiftui-entry-migration"
     elif profile.xcode_projects:
         mode = "xcode-adopt"
+        scenario = "xcode-uikit-baseline-adoption"
     else:
         mode = "unsupported"
+        scenario = "unsupported-repo-shape"
 
     status = "blocked" if blockers else "needs-confirmation" if questions else "ready"
     summary = {
@@ -380,11 +389,15 @@ def build_plan(profile: RepositoryProfile) -> AdoptionPlan:
             "Run make test when test files, xctestplan, or shared build settings change.",
         ]
 
+    next_actions = recommended_next_actions(profile, mode, scenario, blockers, questions)
+
     return AdoptionPlan(
         mode=mode,
+        scenario=scenario,
         status=status,
         summary=summary,
         recommended_questions=questions,
+        recommended_next_actions=next_actions,
         proposed_changes=proposed_changes,
         preserved_by_default=[
             "git history and remotes",
@@ -397,6 +410,60 @@ def build_plan(profile: RepositoryProfile) -> AdoptionPlan:
         warnings=warnings,
         verification=verification,
     )
+
+
+def recommended_next_actions(
+    profile: RepositoryProfile,
+    mode: str,
+    scenario: str,
+    blockers: list[str],
+    questions: list[str],
+) -> list[str]:
+    if blockers:
+        return [
+            "Resolve blockers first; do not apply starter changes while repository state is unsafe.",
+            "Re-run the analyzer after the worktree and project shape are ready.",
+        ]
+
+    if scenario == "xcode-uikit-baseline-adoption":
+        actions = [
+            "If the user wants baseline adoption, run the analyzer with --apply.",
+            "If the user only wants a comparison, stop at the plan and summarize the missing baseline surfaces.",
+        ]
+        if questions:
+            actions.insert(0, "Answer the recommended questions before applying changes.")
+        return actions
+
+    if scenario == "xcode-swiftui-entry-migration":
+        return [
+            "Clarify whether UIKit is the desired architecture direction or only a starter-baseline comparison.",
+            "If UIKit is the direction, plan the smallest shell migration before touching app entry code.",
+            "If comparison is enough, preserve SwiftUI entry and only document reusable baseline ideas.",
+        ]
+
+    if scenario == "tuist-swiftui-guided-decision":
+        actions = [
+            "Ask whether the user wants baseline comparison, Tuist workflow hardening, or a real UIKit architecture migration.",
+            "Keep Tuist and existing repo-scoped commands as source of truth unless the user explicitly chooses migration away from them.",
+            "If the goal is UIKit migration, create a dedicated migration plan before code changes.",
+        ]
+        if profile.has_swiftui_first_guidance:
+            actions.insert(0, "Treat SwiftUI-first guidance as binding until the user explicitly overrides it.")
+        return actions
+
+    if scenario == "tuist-source-preserving-baseline":
+        return [
+            "Preserve Tuist manifests as source of truth by default.",
+            "Map compatible baseline ideas into existing Tuist or mise workflows instead of adding parallel Xcode/Makefile surfaces.",
+        ]
+
+    if mode == "unsupported":
+        return [
+            "Use the analyzer output as a discovery report only.",
+            "Add support for this repo shape before attempting apply.",
+        ]
+
+    return ["Review the plan and choose the least disruptive path for the user's goal."]
 
 
 def template_root_from_script() -> Path:
@@ -562,6 +629,7 @@ def format_text(profile: RepositoryProfile, plan: AdoptionPlan) -> str:
         "",
         f"Repository: {profile.repo_path}",
         f"Mode: {plan.mode}",
+        f"Scenario: {plan.scenario}",
         f"Status: {plan.status}",
         f"Summary: {plan.summary}",
         "",
@@ -584,6 +652,7 @@ def format_text(profile: RepositoryProfile, plan: AdoptionPlan) -> str:
     sections = [
         ("Blockers", plan.blockers),
         ("Recommended Questions", plan.recommended_questions),
+        ("Recommended Next Actions", plan.recommended_next_actions),
         ("Warnings", plan.warnings),
         ("Proposed Changes", plan.proposed_changes),
         ("Preserved By Default", plan.preserved_by_default),

@@ -70,6 +70,7 @@ python3 scripts/adopt_existing.py \
 
 - The analyzer is read-only unless `--apply` is passed. It detects Xcode projects, workspaces, Tuist manifests, SwiftUI entry points, UIKit lifecycle files, app targets, test targets, bundle identifiers, dirty worktrees, and existing Modern.UIKit DevKit surfaces.
 - Ask only the questions listed in `Recommended Questions`; do not ask for values that can be preserved from the existing repo.
+- Use `Scenario` and `Recommended Next Actions` to adapt to the user's actual goal; do not force every repo toward the same end state.
 - Preserve git history, remotes, bundle identifiers, signing settings, app source, resources, and product-specific docs by default.
 - First-slice automation focuses on existing UIKit/Xcode repos. SwiftUI and Tuist repos are migration-assisted: generate the plan, resolve the blocking decisions, and avoid pretending the migration is a simple scaffold rename.
 - For Tuist repos, preserve the manifest as source of truth when repo guidance says so; map compatible baseline ideas into existing Tuist/mise commands instead of adding a parallel Makefile by default.
@@ -82,6 +83,14 @@ python3 scripts/adopt_existing.py \
   --repo-path ~/Developer/CapArt \
   --apply
 ```
+
+Scenario guidance:
+
+- `xcode-uikit-baseline-adoption`: apply the additive baseline when the user wants adoption.
+- `xcode-swiftui-entry-migration`: clarify whether UIKit is the new architecture direction before changing app entry code.
+- `tuist-source-preserving-baseline`: keep Tuist as source of truth and port compatible ideas into existing commands.
+- `tuist-swiftui-guided-decision`: respect SwiftUI-first / Tuist-source repo guidance until the user explicitly overrides it.
+- `unsupported-repo-shape`: treat the analyzer as discovery output only.
 
 ## Input Rules
 

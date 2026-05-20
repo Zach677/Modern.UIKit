@@ -66,7 +66,9 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             plan = adopt_existing.build_plan(profile)
 
         self.assertEqual(plan.mode, "xcode-adopt")
+        self.assertEqual(plan.scenario, "xcode-uikit-baseline-adoption")
         self.assertEqual(plan.status, "ready")
+        self.assertTrue(any("--apply" in action for action in plan.recommended_next_actions))
         self.assertEqual(profile.app_targets, ["Fixture"])
         self.assertEqual(profile.bundle_identifiers, ["com.example.fixture"])
 
@@ -87,6 +89,24 @@ class AnalyzeRepositoryTests(unittest.TestCase):
 
         self.assertEqual(plan.status, "blocked")
         self.assertIn("clean worktree", " ".join(plan.blockers))
+        self.assertTrue(any("Resolve blockers" in action for action in plan.recommended_next_actions))
+
+    def test_non_git_repo_is_discovery_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertFalse(profile.is_git_repo)
+        self.assertEqual(plan.status, "blocked")
+        self.assertTrue(any("Initialize git" in blocker for blocker in plan.blockers))
 
     def test_tuist_repo_asks_source_of_truth_question(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -98,6 +118,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             plan = adopt_existing.build_plan(profile)
 
         self.assertEqual(plan.mode, "tuist-migration-assisted")
+        self.assertEqual(plan.scenario, "tuist-source-preserving-baseline")
         self.assertEqual(plan.status, "needs-confirmation")
         self.assertTrue(any("Tuist remain" in question for question in plan.recommended_questions))
 
@@ -149,11 +170,15 @@ let project = Project(
         self.assertTrue(profile.has_mise_tasks)
         self.assertTrue(profile.has_swiftui_first_guidance)
         self.assertTrue(profile.has_tuist_source_guidance)
+        self.assertEqual(plan.scenario, "tuist-swiftui-guided-decision")
         self.assertTrue(any("mise tasks" in change for change in plan.proposed_changes))
         self.assertFalse(
             any("Add a top-level Makefile" in change for change in plan.proposed_changes)
         )
         self.assertTrue(any("SwiftUI first" in question for question in plan.recommended_questions))
+        self.assertTrue(
+            any("SwiftUI-first guidance" in action for action in plan.recommended_next_actions)
+        )
         self.assertTrue(any("Tuist/mise" in step for step in plan.verification))
 
     def test_swiftui_repo_asks_entry_strategy_question(self) -> None:
@@ -171,8 +196,32 @@ let project = Project(
             plan = adopt_existing.build_plan(profile)
 
         self.assertEqual(plan.mode, "swiftui-migration-assisted")
+        self.assertEqual(plan.scenario, "xcode-swiftui-entry-migration")
         self.assertEqual(plan.status, "needs-confirmation")
         self.assertTrue(any("SwiftUI root" in question for question in plan.recommended_questions))
+        self.assertTrue(any("shell migration" in action for action in plan.recommended_next_actions))
+
+    def test_multi_target_xcode_repo_requires_target_choice(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(repo_root / "Alpha" / "Resources" / "Info.plist", "<plist />")
+            write(repo_root / "Beta" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Alpha" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(profile.app_targets, ["Alpha", "Beta"])
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertTrue(any("Which app target" in question for question in plan.recommended_questions))
+        self.assertTrue(
+            any("recommended questions" in action for action in plan.recommended_next_actions)
+        )
 
     def test_apply_adds_missing_baseline_without_overwriting_existing_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

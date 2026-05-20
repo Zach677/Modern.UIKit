@@ -57,6 +57,18 @@ python3 skills/uikit-starter/scripts/adopt_existing.py \
 
 The first adoption slice supports clean UIKit/Xcode repos. SwiftUI and Tuist repos are detected as migration-assisted flows, so an agent can ask the few decisions that actually matter before changing code.
 
+## Adoption Scenarios
+
+Existing repos are not all trying to reach the same end state. The analyzer reports a `Scenario` and `Recommended Next Actions` so an agent can choose the least disruptive path.
+
+| Scenario                           | Typical user goal                                                    | Default behavior                                                               |
+| ---------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `xcode-uikit-baseline-adoption`    | Bring a UIKit/Xcode repo onto the starter baseline                   | Add missing baseline files with `--apply`, without overwriting existing files  |
+| `xcode-swiftui-entry-migration`    | Compare the starter or intentionally move a SwiftUI app toward UIKit | Ask whether UIKit is an architecture change before touching app entry code     |
+| `tuist-source-preserving-baseline` | Reuse baseline ideas while keeping Tuist                             | Keep Tuist manifests as source of truth and map ideas into existing commands   |
+| `tuist-swiftui-guided-decision`    | Evaluate a SwiftUI/Tuist app like SubPanda                           | Treat SwiftUI/Tuist guidance as binding until the user explicitly overrides it |
+| `unsupported-repo-shape`           | Inspect an uncommon repo shape                                       | Use the output as discovery only; add support before applying changes          |
+
 ## What You Get
 
 Core app baseline:
