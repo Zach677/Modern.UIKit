@@ -84,7 +84,10 @@ class AnalyzeRepositoryTests(unittest.TestCase):
         self.assertEqual(plan.mode, "xcode-adopt")
         self.assertEqual(plan.scenario, "xcode-uikit-baseline-adoption")
         self.assertEqual(plan.status, "ready")
-        self.assertEqual(plan.goal_supported_level, "safe-now")
+        self.assertEqual(plan.goal_supported_level, "apply-ready")
+        self.assertTrue(plan.can_apply)
+        self.assertTrue(plan.can_dry_run)
+        self.assertFalse(plan.requires_confirmation)
         self.assertTrue(any("--apply" in action for action in plan.recommended_next_actions))
         self.assertEqual(profile.app_targets, ["Fixture"])
         self.assertEqual(profile.bundle_identifiers, ["com.example.fixture"])
@@ -105,6 +108,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             plan = adopt_existing.build_plan(profile)
 
         self.assertEqual(plan.status, "blocked")
+        self.assertFalse(plan.can_apply)
         self.assertIn("clean worktree", " ".join(plan.blockers))
         self.assertTrue(any("Resolve blockers" in action for action in plan.recommended_next_actions))
 
@@ -260,7 +264,39 @@ let project = Project(
         self.assertTrue(any("SwiftUI root" in question for question in plan.recommended_questions))
         self.assertTrue(any("shell migration" in action for action in plan.recommended_next_actions))
 
-    def test_baseline_comparison_intent_on_swiftui_repo_is_safe_now(self) -> None:
+    def test_swiftui_app_with_delegate_adaptor_is_not_ready_xcode_adopt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            write(
+                repo_root / "Fixture" / "FixtureApp.swift",
+                """
+import SwiftUI
+
+@main
+struct FixtureApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    var body: some Scene { WindowGroup { Text("Hi") } }
+}
+""",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertTrue(profile.has_swiftui_entry)
+        self.assertTrue(profile.has_uikit_lifecycle)
+        self.assertEqual(plan.mode, "swiftui-migration-assisted")
+        self.assertEqual(plan.scenario, "xcode-swiftui-entry-migration")
+        self.assertFalse(plan.can_apply)
+
+    def test_baseline_comparison_intent_on_swiftui_repo_is_safe_to_plan(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)
             (repo_root / "Fixture.xcodeproj").mkdir()
@@ -275,7 +311,9 @@ let project = Project(
             plan = adopt_existing.build_plan(profile, "baseline-comparison")
 
         self.assertEqual(plan.scenario, "xcode-swiftui-entry-migration")
-        self.assertEqual(plan.goal_supported_level, "safe-now")
+        self.assertEqual(plan.goal_supported_level, "safe-to-plan-now")
+        self.assertFalse(plan.can_apply)
+        self.assertFalse(plan.can_dry_run)
         self.assertEqual(
             plan.preserve_or_replace["swiftui_entry"],
             "preserve for comparison or workflow hardening",
@@ -297,6 +335,7 @@ let project = Project(
 
         self.assertEqual(plan.scenario, "xcode-swiftui-entry-migration")
         self.assertEqual(plan.goal_supported_level, "plan-only")
+        self.assertFalse(plan.can_apply)
         self.assertTrue(any("architecture boundary" in question for question in plan.recommended_questions))
         self.assertEqual(
             plan.preserve_or_replace["swiftui_entry"],
@@ -352,6 +391,29 @@ let project = Project(
         )
         self.assertTrue(any("Stop at this plan" in action for action in plan.recommended_next_actions))
 
+    def test_full_template_intent_on_workspace_only_repo_is_unsupported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(
+                repo_root / "Fixture.xcworkspace" / "contents.xcworkspacedata",
+                "<Workspace version=\"1.0\"></Workspace>\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile, "full-template-conversion")
+
+        self.assertEqual(plan.scenario, "workspace-only-guided-decision")
+        self.assertEqual(
+            plan.goal_supported_level,
+            "unsupported-without-new-migration-tooling",
+        )
+        self.assertFalse(plan.can_apply)
+        self.assertEqual(
+            plan.unsupported_reason,
+            "Workspace-only repositories need app project discovery before conversion.",
+        )
+
     def test_workspace_only_repo_is_guided_decision_not_unsupported(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)
@@ -369,6 +431,7 @@ let project = Project(
         self.assertEqual(plan.mode, "workspace-preserving-assisted")
         self.assertEqual(plan.scenario, "workspace-only-guided-decision")
         self.assertEqual(plan.status, "needs-confirmation")
+        self.assertFalse(plan.can_apply)
         self.assertTrue(any("workspace contents" in action for action in plan.recommended_next_actions))
 
     def test_swiftpm_nested_app_project_is_plan_only(self) -> None:
@@ -410,7 +473,59 @@ let project = Project(
         self.assertEqual(profile.app_targets, [])
         self.assertEqual(plan.scenario, "xcode-uikit-baseline-adoption")
         self.assertEqual(plan.status, "needs-confirmation")
+        self.assertFalse(plan.can_apply)
         self.assertTrue(any("Which app target" in question for question in plan.recommended_questions))
+
+    def test_full_template_intent_without_app_target_is_unsupported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile, "full-template-conversion")
+
+        self.assertEqual(plan.scenario, "xcode-uikit-baseline-adoption")
+        self.assertEqual(
+            plan.goal_supported_level,
+            "unsupported-without-new-migration-tooling",
+        )
+        self.assertFalse(plan.can_apply)
+        self.assertEqual(plan.unsupported_reason, "No clear app target was detected for conversion.")
+
+    def test_preserve_existing_workflow_with_fastlane_requires_translation_choice(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            write(repo_root / "fastlane" / "Fastfile", "lane :test do\nend\n")
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile, "preserve-existing-workflow")
+
+        self.assertEqual(profile.existing_command_surfaces, ["fastlane"])
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertEqual(plan.goal_supported_level, "safe-to-plan-now")
+        self.assertFalse(plan.can_apply)
+        self.assertTrue(
+            any("translated into them" in question for question in plan.recommended_questions)
+        )
+
+    def test_direct_apply_respects_plan_permissions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile, "baseline-comparison")
+
+            with self.assertRaises(SystemExit):
+                adopt_existing.apply_adoption(profile, plan, template_fixture())
 
     def test_swiftui_view_inside_uikit_lifecycle_stays_xcode_adopt(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -468,12 +583,17 @@ let project = Project(
                 encoding="utf-8"
             )
             readme = (repo_root / "README.md").read_text(encoding="utf-8")
+            workspace = (
+                repo_root / "Fixture.xcworkspace" / "contents.xcworkspacedata"
+            ).read_text(encoding="utf-8")
 
         self.assertTrue(result.applied)
         self.assertIn("Makefile", result.created_files)
+        self.assertIn("Fixture.xcworkspace/contents.xcworkspacedata", result.created_files)
         self.assertIn("Fixture.xctestplan", result.created_files)
         self.assertIn("Fixture.xcworkspace", makefile)
         self.assertIn("IOS_SCHEME      := Fixture", makefile)
+        self.assertIn("group:Fixture.xcodeproj", workspace)
         self.assertIn("PRODUCT_BUNDLE_IDENTIFIER", base_config)
         self.assertEqual(readme, "# Product README\n")
 
@@ -492,13 +612,16 @@ let project = Project(
                 dry_run=True,
             )
             makefile_exists = (repo_root / "Makefile").exists()
+            workspace_exists = (repo_root / "Fixture.xcworkspace").exists()
             testplan_exists = (repo_root / "Fixture.xctestplan").exists()
 
         self.assertFalse(result.applied)
         self.assertTrue(result.dry_run)
         self.assertIn("Makefile", result.would_create_files)
+        self.assertIn("Fixture.xcworkspace/contents.xcworkspacedata", result.would_create_files)
         self.assertIn("Fixture.xctestplan", result.would_create_files)
         self.assertFalse(makefile_exists)
+        self.assertFalse(workspace_exists)
         self.assertFalse(testplan_exists)
 
     def test_apply_preserves_existing_makefile_and_devkit_files(self) -> None:
@@ -563,6 +686,11 @@ let project = Project(
         self.assertIn("profile", payload)
         self.assertIn("plan", payload)
         self.assertIn("adoption_intent", payload["plan"])
+        self.assertTrue(payload["plan"]["can_apply"])
+        self.assertTrue(payload["plan"]["can_dry_run"])
+        self.assertFalse(payload["plan"]["requires_confirmation"])
+        self.assertEqual(payload["plan"]["source_of_truth"], "xcode-project")
+        self.assertIn("missing Makefile", payload["plan"]["write_scope"])
         self.assertIn("preserve_or_replace", payload["plan"])
 
     def test_cli_dry_run_unavailable_exits_with_contract_code(self) -> None:

@@ -59,6 +59,7 @@ class RepositoryProfile:
     has_swiftui_first_guidance: bool
     has_tuist_source_guidance: bool
     has_makefile: bool
+    existing_command_surfaces: list[str]
     has_modern_uikit_devkit: bool
     devkit_missing_files: list[str]
     has_configuration_dir: bool
@@ -72,6 +73,12 @@ class AdoptionPlan:
     scenario: str
     status: str
     goal_supported_level: str
+    can_apply: bool
+    can_dry_run: bool
+    requires_confirmation: bool
+    write_scope: list[str]
+    source_of_truth: str
+    unsupported_reason: str | None
     summary: str
     recommended_questions: list[str]
     recommended_next_actions: list[str]
@@ -258,6 +265,30 @@ def infer_tuist_targets(repo_root: Path) -> list[tuple[str, str, str]]:
     return [(match.group(1), match.group(2), match.group(3)) for match in matches]
 
 
+def detect_existing_command_surfaces(repo_root: Path) -> list[str]:
+    surfaces: list[str] = []
+    candidates = [
+        ("Makefile", "make"),
+        ("mise.toml", "mise"),
+        ("justfile", "just"),
+        ("Justfile", "just"),
+        ("fastlane/Fastfile", "fastlane"),
+        ("project.yml", "xcodegen"),
+        ("Project.yml", "xcodegen"),
+        ("WORKSPACE", "bazel"),
+        ("WORKSPACE.bazel", "bazel"),
+        ("MODULE.bazel", "bazel"),
+        (".bazelrc", "bazel"),
+        ("BUCK", "buck"),
+        ("BUCK2", "buck"),
+        (".github/workflows", "github-actions"),
+    ]
+    for relative_path, label in candidates:
+        if (repo_root / relative_path).exists() and label not in surfaces:
+            surfaces.append(label)
+    return sorted(surfaces)
+
+
 def has_guidance(repo_root: Path, needles: list[str]) -> bool:
     guidance_paths = [
         path
@@ -292,6 +323,7 @@ def analyze_repository(repo_root: Path) -> RepositoryProfile:
     is_git_repo, has_dirty_worktree = detect_git_status(repo_root)
     root_xcode_projects = relative_paths(repo_root, "*.xcodeproj")
     all_xcode_projects = recursive_relative_paths(repo_root, "*.xcodeproj")
+    existing_command_surfaces = detect_existing_command_surfaces(repo_root)
     nested_xcode_projects = [
         path for path in all_xcode_projects if path not in root_xcode_projects
     ]
@@ -330,6 +362,7 @@ def analyze_repository(repo_root: Path) -> RepositoryProfile:
             ["Tuist as the source of truth", "Use Tuist as the source of truth"],
         ),
         has_makefile=(repo_root / "Makefile").exists(),
+        existing_command_surfaces=existing_command_surfaces,
         has_modern_uikit_devkit=not devkit_missing_files,
         devkit_missing_files=devkit_missing_files,
         has_configuration_dir=(repo_root / "Configuration").is_dir(),
@@ -380,6 +413,19 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
     if profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
         questions.append("Which nested app project should be treated as the iOS app surface?")
         warnings.append("SwiftPM package-first adoption is plan-only until the app project is selected.")
+    if (
+        adoption_intent == "preserve-existing-workflow"
+        and profile.existing_command_surfaces
+        and not profile.has_makefile
+        and not profile.has_tuist
+        and not profile.has_cocoapods
+    ):
+        questions.append(
+            "This repo already has command surfaces; should Modern.UIKit checks be translated into them instead of adding a Makefile?"
+        )
+        warnings.append(
+            f"Existing command surfaces detected: {', '.join(profile.existing_command_surfaces)}."
+        )
     if profile.has_tuist:
         if profile.has_tuist_source_guidance:
             warnings.append("Repo guidance says Tuist should remain the source of truth.")
@@ -388,7 +434,7 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
                 "Should Tuist remain the source of truth, or should this repo migrate to the Xcode workspace baseline?"
             )
         warnings.append("Tuist adoption is plan-only in this first slice.")
-    if profile.has_swiftui_entry and not profile.has_uikit_lifecycle:
+    if profile.has_swiftui_entry:
         if profile.has_swiftui_first_guidance:
             questions.append(
                 "This repo says SwiftUI first; confirm whether UIKit adoption is an architecture change or only a baseline comparison."
@@ -480,7 +526,7 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
     elif profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
         mode = "swiftpm-app-assisted"
         scenario = "swiftpm-nested-app-guided-decision"
-    elif profile.has_swiftui_entry and not profile.has_uikit_lifecycle:
+    elif profile.has_swiftui_entry:
         mode = "swiftui-migration-assisted"
         scenario = "xcode-swiftui-entry-migration"
     elif profile.xcode_projects:
@@ -535,6 +581,8 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         status,
         adoption_intent,
     )
+    can_apply = can_apply_plan(mode, status, adoption_intent)
+    can_dry_run = can_dry_run_plan(mode, status, adoption_intent)
     next_actions = recommended_next_actions(
         profile,
         mode,
@@ -551,6 +599,12 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         scenario=scenario,
         status=status,
         goal_supported_level=goal_supported_level,
+        can_apply=can_apply,
+        can_dry_run=can_dry_run,
+        requires_confirmation=status == "needs-confirmation",
+        write_scope=write_scope_for_plan(mode, status, adoption_intent),
+        source_of_truth=source_of_truth_for_profile(profile),
+        unsupported_reason=unsupported_reason_for_plan(goal_supported_level, profile, mode),
         summary=summary,
         recommended_questions=questions,
         recommended_next_actions=next_actions,
@@ -579,15 +633,84 @@ def infer_goal_supported_level(
 ) -> str:
     if status == "blocked":
         return "blocked"
-    if adoption_intent in {"baseline-comparison", "preserve-existing-workflow"}:
-        return "safe-now"
-    if mode == "xcode-adopt" and scenario == "xcode-uikit-baseline-adoption":
-        return "safe-now"
     if adoption_intent == "full-template-conversion":
-        if profile.has_tuist or profile.has_swiftui_entry or profile.has_cocoapods:
+        if (
+            status != "ready"
+            or profile.has_tuist
+            or profile.has_swiftui_entry
+            or profile.has_cocoapods
+            or (profile.xcode_workspaces and not profile.xcode_projects)
+            or (profile.xcode_projects and not profile.app_targets)
+        ):
             return "unsupported-without-new-migration-tooling"
-        return "safe-now"
+        return "apply-ready"
+    if adoption_intent in {"baseline-comparison", "preserve-existing-workflow"}:
+        return "safe-to-plan-now"
+    if mode == "xcode-adopt" and scenario == "xcode-uikit-baseline-adoption":
+        return "apply-ready" if status == "ready" else "safe-to-plan-now"
     return "plan-only"
+
+
+def can_apply_plan(mode: str, status: str, adoption_intent: str) -> bool:
+    if status != "ready" or mode != "xcode-adopt":
+        return False
+    return adoption_intent in {"auto", "full-template-conversion"}
+
+
+def can_dry_run_plan(mode: str, status: str, adoption_intent: str) -> bool:
+    if status != "ready" or mode != "xcode-adopt":
+        return False
+    return adoption_intent != "baseline-comparison"
+
+
+def write_scope_for_plan(mode: str, status: str, adoption_intent: str) -> list[str]:
+    if not can_apply_plan(mode, status, adoption_intent):
+        return []
+    return [
+        "missing Configuration/*.xcconfig files",
+        "missing Resources/DevKit/scripts files",
+        "missing Makefile",
+        "missing app workspace wrapper",
+        "missing app test plan when a test target can be identified",
+    ]
+
+
+def source_of_truth_for_profile(profile: RepositoryProfile) -> str:
+    if profile.has_tuist:
+        return "tuist"
+    if profile.has_cocoapods:
+        return "cocoapods-workspace"
+    if profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
+        return "swift-package-with-nested-app-project"
+    if profile.xcode_workspaces and not profile.xcode_projects:
+        return "workspace-only"
+    if profile.xcode_projects:
+        return "xcode-project"
+    return "unknown"
+
+
+def unsupported_reason_for_plan(
+    goal_supported_level: str,
+    profile: RepositoryProfile,
+    mode: str,
+) -> str | None:
+    if goal_supported_level != "unsupported-without-new-migration-tooling":
+        return None
+    if profile.has_tuist and profile.has_swiftui_entry:
+        return "Full conversion from Tuist + SwiftUI needs dedicated source-of-truth and lifecycle migration tooling."
+    if profile.has_tuist:
+        return "Full conversion from Tuist needs dedicated source-of-truth migration tooling."
+    if profile.has_swiftui_entry:
+        return "Full conversion from SwiftUI entry needs dedicated lifecycle migration tooling."
+    if profile.has_cocoapods:
+        return "Full conversion from CocoaPods workspace needs dedicated dependency workflow migration tooling."
+    if profile.xcode_workspaces and not profile.xcode_projects:
+        return "Workspace-only repositories need app project discovery before conversion."
+    if profile.xcode_projects and not profile.app_targets:
+        return "No clear app target was detected for conversion."
+    if mode != "xcode-adopt":
+        return "This repository shape is not an automated apply path."
+    return "This goal is not supported by automated adoption yet."
 
 
 def preserve_or_replace_matrix(
@@ -654,7 +777,7 @@ def forbidden_actions(profile: RepositoryProfile) -> list[str]:
         actions.append(
             "Do not add a parallel command surface that conflicts with existing mise tasks."
         )
-    if profile.has_swiftui_entry and not profile.has_uikit_lifecycle:
+    if profile.has_swiftui_entry:
         actions.append(
             "Do not replace the SwiftUI @main entry or root architecture until the user confirms a UIKit migration."
         )
@@ -870,6 +993,49 @@ def write_test_plan_if_missing(
     return planned
 
 
+def workspace_contents(project_name: str) -> str:
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Workspace\n'
+        '   version = "1.0">\n'
+        '   <FileRef\n'
+        f'      location = "group:{project_name}.xcodeproj">\n'
+        '   </FileRef>\n'
+        '</Workspace>\n'
+    )
+
+
+def planned_workspace_if_missing(
+    repo_root: Path,
+    names: AdoptionNames,
+    profile: RepositoryProfile,
+) -> tuple[str, bool] | None:
+    if not profile.xcode_projects:
+        return None
+    relative_path = f"{names.project_name}.xcworkspace/contents.xcworkspacedata"
+    target_path = repo_root / relative_path
+    if target_path.exists():
+        return relative_path, False
+    return relative_path, True
+
+
+def write_workspace_if_missing(
+    repo_root: Path,
+    names: AdoptionNames,
+    profile: RepositoryProfile,
+) -> tuple[str, bool] | None:
+    planned = planned_workspace_if_missing(repo_root, names, profile)
+    if planned is None:
+        return None
+    relative_path, created = planned
+    if not created:
+        return planned
+    target_path = repo_root / relative_path
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    target_path.write_text(workspace_contents(names.project_name), encoding="utf-8")
+    return planned
+
+
 def planned_test_plan_if_missing(
     repo_root: Path,
     names: AdoptionNames,
@@ -897,8 +1063,11 @@ def apply_adoption(
     *,
     dry_run: bool = False,
 ) -> ApplyResult:
-    if plan.status != "ready" or plan.mode != "xcode-adopt":
-        raise SystemExit("Adoption apply is only available for ready xcode-adopt plans.")
+    if dry_run:
+        if not plan.can_dry_run:
+            raise SystemExit("Adoption dry-run is not permitted by this plan.")
+    elif not plan.can_apply:
+        raise SystemExit("Adoption apply is not permitted by this plan.")
 
     repo_root = Path(profile.repo_path)
     template_root = template_root.expanduser().resolve()
@@ -934,6 +1103,13 @@ def apply_adoption(
             skipped_files.append(path)
 
     if dry_run:
+        workspace_result = planned_workspace_if_missing(repo_root, names, profile)
+        if workspace_result is not None:
+            path, created = workspace_result
+            if created:
+                would_create_files.append(path)
+            else:
+                would_skip_files.append(path)
         test_plan_result = planned_test_plan_if_missing(repo_root, names, profile)
         if test_plan_result is not None:
             path, created = test_plan_result
@@ -942,6 +1118,13 @@ def apply_adoption(
             else:
                 would_skip_files.append(path)
     else:
+        workspace_result = write_workspace_if_missing(repo_root, names, profile)
+        if workspace_result is not None:
+            path, created = workspace_result
+            if created:
+                created_files.append(path)
+            else:
+                skipped_files.append(path)
         test_plan_result = write_test_plan_if_missing(repo_root, names, profile)
         if test_plan_result is not None:
             path, created = test_plan_result
@@ -982,6 +1165,11 @@ def format_text(profile: RepositoryProfile, plan: AdoptionPlan) -> str:
         f"Scenario: {plan.scenario}",
         f"Status: {plan.status}",
         f"Goal supported level: {plan.goal_supported_level}",
+        f"Can apply: {'yes' if plan.can_apply else 'no'}",
+        f"Can dry run: {'yes' if plan.can_dry_run else 'no'}",
+        f"Requires confirmation: {'yes' if plan.requires_confirmation else 'no'}",
+        f"Source of truth: {plan.source_of_truth}",
+        f"Unsupported reason: {plan.unsupported_reason or '(none)'}",
         f"Summary: {plan.summary}",
         "",
         "Detected:",
@@ -999,6 +1187,7 @@ def format_text(profile: RepositoryProfile, plan: AdoptionPlan) -> str:
         f"- Test targets: {', '.join(profile.test_targets) or '(none)'}",
         f"- Bundle identifiers: {', '.join(profile.bundle_identifiers) or '(none)'}",
         f"- mise tasks: {'yes' if profile.has_mise_tasks else 'no'}",
+        f"- Existing command surfaces: {', '.join(profile.existing_command_surfaces) or '(none)'}",
         f"- SwiftUI-first guidance: {'yes' if profile.has_swiftui_first_guidance else 'no'}",
         f"- Tuist source guidance: {'yes' if profile.has_tuist_source_guidance else 'no'}",
         f"- Modern.UIKit DevKit complete: {'yes' if profile.has_modern_uikit_devkit else 'no'}",
@@ -1013,6 +1202,7 @@ def format_text(profile: RepositoryProfile, plan: AdoptionPlan) -> str:
         ("Proposed Changes", plan.proposed_changes),
         ("Preserved By Default", plan.preserved_by_default),
         ("Forbidden Actions", plan.forbidden_actions),
+        ("Write Scope", plan.write_scope),
         ("Verification", plan.verification),
     ]
     for title, values in sections:
@@ -1056,7 +1246,8 @@ def main() -> int:
     apply_result = None
     should_preview_or_apply = args.apply or args.dry_run
     if should_preview_or_apply:
-        if plan.status != "ready" or plan.mode != "xcode-adopt":
+        operation_allowed = plan.can_apply if args.apply else plan.can_dry_run
+        if not operation_allowed:
             if args.format == "json":
                 payload = build_json_payload(profile, plan, None)
                 print(json.dumps(payload, indent=2))
@@ -1064,7 +1255,7 @@ def main() -> int:
                 print(format_text(profile, plan), end="")
                 action = "Apply" if args.apply else "Dry run"
                 print(
-                    f"{action} unavailable: adoption apply is only available for ready xcode-adopt plans."
+                    f"{action} unavailable: this plan does not permit that operation."
                 )
             return EXIT_APPLY_NOT_READY
         apply_result = apply_adoption(

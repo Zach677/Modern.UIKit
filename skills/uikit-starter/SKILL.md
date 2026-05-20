@@ -31,10 +31,10 @@ Primary responsibility:
    - Verify with the generated repo's own Makefile workflow.
 3. Adopt-existing mode:
    - Run the backend analyzer before asking migration questions.
-   - Read `Scenario`, `Adoption Intent`, `Goal Supported Level`, `Recommended Questions`, `Recommended Next Actions`, `Warnings`, `Blockers`, `Preserve Or Replace`, and `Forbidden Actions`.
+   - Read `Scenario`, `Adoption Intent`, `Goal Supported Level`, `can_apply`, `can_dry_run`, `requires_confirmation`, `Recommended Questions`, `Recommended Next Actions`, `Warnings`, `Blockers`, `Preserve Or Replace`, and `Forbidden Actions`.
    - Ask only the listed blocking questions.
    - Use dry-run before apply when additive baseline adoption is possible.
-   - Apply only when the plan is `Status: ready` and `Mode: xcode-adopt`.
+   - Apply only when the plan returns `can_apply: true`.
 4. Migration-assisted mode:
    - Treat SwiftUI and Tuist repos as planning cases unless the user explicitly asks for an architecture migration.
    - Preserve Tuist as source of truth when repo guidance says so.
@@ -55,9 +55,9 @@ Backend output contract:
 - Use `--format json` when another agent or script needs stable output.
 - Use `--intent` when the user's goal is clear: `baseline-comparison`, `preserve-existing-workflow`, `full-template-conversion`, or `architecture-migration`.
 - JSON payloads include `schema_version`.
-- Plans include `goal_supported_level`, `preserve_or_replace`, and `forbidden_actions`.
+- Plans include `goal_supported_level`, `can_apply`, `can_dry_run`, `requires_confirmation`, `write_scope`, `source_of_truth`, `preserve_or_replace`, and `forbidden_actions`.
 - Exit code `0`: analysis completed, or apply/dry-run completed when requested and available.
-- Exit code `2`: apply/dry-run was requested, but the plan is not ready xcode-adopt.
+- Exit code `2`: apply/dry-run was requested, but `can_apply` or `can_dry_run` does not permit that operation.
 - Dry-run must not write files.
 - Apply must be additive and must not overwrite existing files.
 

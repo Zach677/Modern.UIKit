@@ -54,7 +54,7 @@ The backend scripts exist for agent reliability. They provide deterministic file
 - Fresh UIKit project creation from the GitHub template.
 - Project renaming for app source, tests, workspace, scheme, bundle identifiers, display name, README, and starter docs.
 - Existing repo analysis without writing files.
-- Additive baseline adoption for clean UIKit/Xcode repos with one clear app target.
+- Additive baseline adoption for clean UIKit/Xcode repos when the analyzer can identify the app target and produce `can_apply: true`.
 - Scenario-guided planning for SwiftUI, Tuist, CocoaPods workspace, and SwiftPM package-first repos.
 - Intent-aware output for baseline comparison, preserving existing workflows, full template conversion, and architecture migration.
 - Stable JSON output with `schema_version: "1.0"` for multi-agent or scripted orchestration.
@@ -75,7 +75,7 @@ Existing repos are not all trying to reach the same end state. The analyzer repo
 | `swiftpm-nested-app-guided-decision`            | Evaluate package-first repos with nested iOS app projects            | Select the app project before any starter adoption                             |
 | `unsupported-repo-shape`                        | Inspect an uncommon repo shape                                       | Use the output as discovery only; add support before applying changes          |
 
-The analyzer also reports `adoption_intent`, `goal_supported_level`, `preserve_or_replace`, and `forbidden_actions`. Agents should treat those fields as the decision contract, especially when the user's goal is not a simple UIKit/Xcode baseline adoption.
+The analyzer also reports `adoption_intent`, `goal_supported_level`, `can_apply`, `can_dry_run`, `requires_confirmation`, `write_scope`, `source_of_truth`, `preserve_or_replace`, and `forbidden_actions`. Agents should treat those fields as the decision contract, especially when the user's goal is not a simple UIKit/Xcode baseline adoption.
 
 ## Safety Contract
 
@@ -83,7 +83,7 @@ Agents may promise these behaviors today:
 
 - Fresh UIKit app creation through `uikit-starter`.
 - Read-only analysis for existing iOS repos.
-- Additive baseline adoption for clean, git-backed UIKit/Xcode repos with one clear app target.
+- Additive baseline adoption for clean, git-backed UIKit/Xcode repos only when the analyzer returns `can_apply: true`.
 - Migration-assisted planning for SwiftUI, Tuist, CocoaPods workspace, and SwiftPM package-first repos.
 - Preservation of git history, remotes, bundle identifiers, signing settings, app source, resources, and product-specific docs by default.
 
@@ -105,9 +105,9 @@ The skill is backed by two scripts:
 The adoption backend contract is intentionally machine-readable:
 
 - JSON payloads include `schema_version: "1.0"`.
-- Plans include `adoption_intent`, `goal_supported_level`, `preserve_or_replace`, and `forbidden_actions`.
+- Plans include `adoption_intent`, `goal_supported_level`, `can_apply`, `can_dry_run`, `requires_confirmation`, `write_scope`, `source_of_truth`, `preserve_or_replace`, and `forbidden_actions`.
 - Exit code `0` means analysis completed, or apply/dry-run completed when requested and available.
-- Exit code `2` means apply/dry-run was requested, but the plan is not `Status: ready` / `Mode: xcode-adopt`.
+- Exit code `2` means apply/dry-run was requested, but the plan's `can_apply` or `can_dry_run` field does not permit that operation.
 - Dry-run must report planned file creation/skips without writing files.
 - Apply must be additive and must not overwrite existing files.
 
