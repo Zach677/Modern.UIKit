@@ -1,123 +1,104 @@
 ---
 name: uikit-starter
-description: Create a new GitHub repository and local workspace from the `Zach677/Modern.UIKit` template, or inspect an existing iOS repo and guide adoption of the Modern.UIKit baseline with minimal user burden. Use when starting a new UIKit iOS project, bootstrapping through `gh`, or evaluating whether an existing SwiftUI/Tuist/Xcode repo can adopt this UIKit starter.
+description: Agent-native workflow for creating fresh UIKit apps from `Zach677/Modern.UIKit` or safely inspecting and adopting the Modern.UIKit baseline in existing iOS repos. Use from Codex, Claude Code, or another coding agent when the user wants a new UIKit app, an existing repo adoption review, or a SwiftUI/Tuist migration plan.
 ---
 
 # UIKit Starter
 
+## Agent Contract
+
+This skill is the user-facing entrypoint. The scripts under `scripts/` are backend execution tools for the agent; do not present them as the primary user interface.
+
+Primary responsibility:
+
+- Create fresh UIKit apps when the user wants a new project.
+- Inspect existing iOS repos before changing them.
+- Choose fresh-create, adopt-existing, or migration-assisted mode from real repo state.
+- Ask only the questions that block correctness.
+- Preserve existing repo identity unless the user explicitly asks to change it.
+- Report unsupported repo shapes honestly instead of forcing a migration.
+
 ## Workflow
 
-1. Decide the mode with as little user burden as possible:
+1. Determine the target shape:
    - If the target GitHub repo does not exist, use fresh-create mode.
-   - If the target GitHub repo exists but is not local, clone it first, then use adopt-existing mode.
+   - If the target GitHub repo exists but is not local, clone the existing repo first, then use adopt-existing mode.
    - If a local repo already exists, use adopt-existing mode.
-   - If the repo uses SwiftUI or Tuist, use migration-assisted mode and ask only the blocking questions surfaced by the adoption plan.
-2. Collect the minimum inputs for fresh-create mode:
-   - internal project name, for example `ShelfMusic`
-   - optional display name, for example `Shelf Music`
-   - GitHub repo name (`owner/repo` or `repo`)
-   - bundle identifier if the default `com.example.*` value is not acceptable
-   - Apple Developer Team ID if the generated app should commit a shared signing identity
-   - Swift language mode: `5.0` by default, or `6.0` for projects that want stricter compiler checks from day one
-   - verification level: `build` by default, `test` for stronger validation
-3. Run `scripts/create_project.py` for fresh repos, or `scripts/adopt_existing.py` for existing repos.
-4. Review the resulting path, adoption plan, and verification output before claiming success.
+   - If the repo uses SwiftUI or Tuist, use migration-assisted mode and treat existing repo guidance as binding until the user overrides it.
+2. Fresh-create mode:
+   - Collect only the missing inputs: internal project name, optional display name, repo name, bundle identifier when needed, optional Apple Developer Team ID, Swift language mode, and verification level.
+   - Run the backend creation script.
+   - Verify with the generated repo's own Makefile workflow.
+3. Adopt-existing mode:
+   - Run the backend analyzer before asking migration questions.
+   - Read `Scenario`, `Recommended Questions`, `Recommended Next Actions`, `Warnings`, and `Blockers`.
+   - Ask only the listed blocking questions.
+   - Use dry-run before apply when additive baseline adoption is possible.
+   - Apply only when the plan is `Status: ready` and `Mode: xcode-adopt`.
+4. Migration-assisted mode:
+   - Treat SwiftUI and Tuist repos as planning cases unless the user explicitly asks for an architecture migration.
+   - Preserve Tuist as source of truth when repo guidance says so.
+   - Map compatible baseline ideas into existing repo workflows instead of adding parallel build surfaces by default.
+5. Final report:
+   - State what mode and scenario were used.
+   - State what changed or why nothing changed.
+   - State validation commands actually run and their result.
+   - State unsupported or deferred migration work clearly.
 
-## Mode
+## Backend Tools
 
-### GitHub-backed mode
+- `scripts/create_project.py`: creates a GitHub-template app, renames project-specific surfaces, rewrites generated docs, and runs verification when requested.
+- `scripts/adopt_existing.py`: analyzes existing repos, emits adoption plans, previews additive changes, and applies the first safe UIKit/Xcode adoption slice.
 
-- Default mode.
-- Uses `gh repo create --template Zach677/Modern.UIKit --clone`.
-- Renames the root `.xcodeproj`, `.xcworkspace`, shared scheme, and `.xctestplan` along with the source and test folders.
-- Rewrites the starter docs so the generated repo describes the new app instead of the template itself.
-- The generated repo expects `xcbeautify` on `PATH` and `prettier` available through `npx` for the standard DevKit flows.
-- The generated repo does not link LookInside by default; its docs describe LookInside as optional local developer tooling.
-- If the user asks to configure LookInside, install or verify the local app and CLI, but do not add committed `LookInsideServer` runtime wiring unless they explicitly request shared debug tooling.
-- Run a quick preflight first:
+Backend output contract:
 
-```bash
-gh auth status
-gh repo view Zach677/Modern.UIKit
-```
+- Use `--format json` when another agent or script needs stable output.
+- JSON payloads include `schema_version`.
+- Exit code `0`: analysis completed, or apply/dry-run completed when requested and available.
+- Exit code `2`: apply/dry-run was requested, but the plan is not ready xcode-adopt.
+- Dry-run must not write files.
+- Apply must be additive and must not overwrite existing files.
 
-Example:
+## Scenario Guidance
 
-```bash
-python3 scripts/create_project.py \
-  --project-name ShelfMusic \
-  --display-name "Shelf Music" \
-  --repo Zach677/shelf-music \
-  --bundle-id com.zach.shelfmusic \
-  --development-team S56VW4D8X4 \
-  --swift-version 6.0 \
-  --visibility private \
-  --parent-dir ~/Developer \
-  --verify build
-```
-
-### Adopt-existing mode
-
-- Use this mode when the repo already exists locally or on GitHub.
-- Start by cloning the existing repo if there is no local checkout yet; do not recreate it from the template.
-- Run the adoption analyzer before asking the user migration questions:
-
-```bash
-python3 scripts/adopt_existing.py \
-  --repo-path ~/Developer/CapArt \
-  --format text
-```
-
-- The analyzer is read-only unless `--apply` is passed. It detects Xcode projects, workspaces, Tuist manifests, SwiftUI entry points, UIKit lifecycle files, app targets, test targets, bundle identifiers, dirty worktrees, and existing Modern.UIKit DevKit surfaces.
-- Ask only the questions listed in `Recommended Questions`; do not ask for values that can be preserved from the existing repo.
-- Use `Scenario` and `Recommended Next Actions` to adapt to the user's actual goal; do not force every repo toward the same end state.
-- Preserve git history, remotes, bundle identifiers, signing settings, app source, resources, and product-specific docs by default.
-- First-slice automation focuses on existing UIKit/Xcode repos. SwiftUI and Tuist repos are migration-assisted: generate the plan, resolve the blocking decisions, and avoid pretending the migration is a simple scaffold rename.
-- For Tuist repos, preserve the manifest as source of truth when repo guidance says so; map compatible baseline ideas into existing Tuist/mise commands instead of adding a parallel Makefile by default.
-- Use `--dry-run` to preview additive baseline files without writing. Use `--format json` when another agent or script needs stable output; the JSON payload includes `schema_version`.
-- Only run `--apply` when the plan is `Status: ready` and `Mode: xcode-adopt`; it adds missing baseline files without overwriting existing files.
-
-Example apply:
-
-```bash
-python3 scripts/adopt_existing.py \
-  --repo-path ~/Developer/CapArt \
-  --apply
-```
-
-Exit code contract:
-
-- `0`: analysis completed; apply or dry-run completed when requested and available.
-- `2`: `--apply` or `--dry-run` was requested but the plan is not ready xcode-adopt.
-
-Scenario guidance:
-
-- `xcode-uikit-baseline-adoption`: apply the additive baseline when the user wants adoption.
+- `xcode-uikit-baseline-adoption`: if the user wants adoption, preview then apply the additive baseline.
 - `xcode-swiftui-entry-migration`: clarify whether UIKit is the new architecture direction before changing app entry code.
 - `tuist-source-preserving-baseline`: keep Tuist as source of truth and port compatible ideas into existing commands.
-- `tuist-swiftui-guided-decision`: respect SwiftUI-first / Tuist-source repo guidance until the user explicitly overrides it.
-- `unsupported-repo-shape`: treat the analyzer as discovery output only.
+- `tuist-swiftui-guided-decision`: respect SwiftUI-first and Tuist-source repo guidance until the user explicitly overrides it.
+- `unsupported-repo-shape`: treat analyzer output as discovery only.
 
-## Input Rules
+## Preservation Rules
 
-- `--project-name` is the internal Xcode-facing name. Keep it identifier-safe, for example `ShelfMusic` or `Shelf-Music`.
-- `--display-name` is optional. When omitted, the app display name stays exactly the same as `--project-name`; pass it only when the user wants a different marketing name such as a spaced name.
-- `--bundle-id` defaults to `com.example.<sanitized-name>` when omitted.
-- `--development-team` is optional. Use it for personal or single-team apps that should commit the shared Apple Developer Team ID in `Configuration/Base.xcconfig`; omit it when the generated repo should stay team-neutral and rely on local developer overrides.
-- `--swift-version` defaults to `5.0`; use `6.0` when the new project should start in Swift 6 language mode.
-- `--verify` defaults to `build`. Use `test` when the user wants stronger validation and the extra runtime is acceptable.
-- `--repo` is required and selects the GitHub repository to create.
+Preserve by default:
 
-### scripts/
+- Git history and remotes.
+- Existing bundle identifiers.
+- Existing signing settings.
+- Existing app source and resources.
+- Product-specific documentation that does not conflict with the adopted workflow.
+- Tuist manifests and existing `mise` commands when the repo already owns them.
 
-- `scripts/create_project.py` is the source of truth for scaffold execution.
-- `scripts/adopt_existing.py` is the source of truth for existing-repo inspection and adoption planning.
-- Do not hand-rename the cloned template first. Let the script perform the rename pass so project paths, schemes, targets, test bundle names, docs, and config files stay aligned.
+Do not automatically:
+
+- Replace SwiftUI app entry with UIKit.
+- Convert Tuist to Xcode or Xcode to Tuist.
+- Add a parallel Makefile to a Tuist repo that already has repo-scoped commands.
+- Overwrite existing files during adoption.
+- Commit LookInside or `LookInsideServer` wiring unless the user explicitly adopts shared debug tooling.
+
+## Fresh-Create Inputs
+
+- `project-name`: internal Xcode-facing name, identifier-safe, for example `ShelfMusic`.
+- `display-name`: optional; when omitted, keep the display name exactly equal to `project-name`.
+- `repo`: GitHub repository name.
+- `bundle-id`: optional; defaults to a generated `com.example.*` value.
+- `development-team`: optional; use only when the generated app should commit a shared signing identity.
+- `swift-version`: `5.0` by default, `6.0` when stricter compiler diagnostics are desired.
+- `verify`: `build` by default, `test` when stronger validation is worth the extra time.
 
 ## Notes
 
-- The skill assumes the template repository is `Zach677/Modern.UIKit` unless the caller overrides it.
-- The script rewrites the template placeholder names automatically and removes template-only scaffolding from the generated repo, so the skill should not rely on the checked-in internal names in user-facing conversation.
-- Generated repos do not keep fallback branches for missing `xcbeautify` / `prettier`; install those tools as part of the local setup.
-- Generated README files include a LookInside setup section for both manual setup and coding-agent setup; treat it as optional developer tooling, not app architecture.
-- If the user wants this skill to be auto-discoverable on the current machine, install it under `~/.codex/skills`, preferably via symlink to the repo copy.
+- The template repository is `Zach677/Modern.UIKit` unless the caller overrides it.
+- Generated repos should not keep `skills/uikit-starter` or advertise template internals as app features.
+- Generated repos expect agent-accessible `gh`, Xcode, `xcbeautify`, `npx`/Prettier, and `swiftformat` for the full workflow.
+- If the user wants this skill to be auto-discoverable on the current machine, install it under the agent runtime's skill directory, preferably via symlink to the repo copy.
