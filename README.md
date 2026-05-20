@@ -33,6 +33,8 @@ Good agent prompts look like:
 - `Use $uikit-starter to create a new private UIKit app repo named ShelfMusic.`
 - `Use $uikit-starter to inspect this repo and tell me whether it can adopt Modern.UIKit safely.`
 - `Use $uikit-starter on this SwiftUI/Tuist repo, but do not change files until you explain the migration path.`
+- `Use $uikit-starter to preserve this repo's Tuist/mise workflow and only borrow compatible Modern.UIKit practices.`
+- `Use $uikit-starter to evaluate a full UIKit template conversion, but stop if the current tooling cannot do that safely.`
 
 ## Agent Workflow
 
@@ -53,20 +55,26 @@ The backend scripts exist for agent reliability. They provide deterministic file
 - Project renaming for app source, tests, workspace, scheme, bundle identifiers, display name, README, and starter docs.
 - Existing repo analysis without writing files.
 - Additive baseline adoption for clean UIKit/Xcode repos with one clear app target.
-- Scenario-guided planning for SwiftUI and Tuist repos.
+- Scenario-guided planning for SwiftUI, Tuist, CocoaPods workspace, and SwiftPM package-first repos.
+- Intent-aware output for baseline comparison, preserving existing workflows, full template conversion, and architecture migration.
 - Stable JSON output with `schema_version: "1.0"` for multi-agent or scripted orchestration.
 
 ## Adoption Scenarios
 
 Existing repos are not all trying to reach the same end state. The analyzer reports a `Scenario` and `Recommended Next Actions` so the agent can choose the least disruptive path.
 
-| Scenario                           | Typical user goal                                                    | Agent behavior                                                                 |
-| ---------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `xcode-uikit-baseline-adoption`    | Bring a UIKit/Xcode repo onto the starter baseline                   | Preview/apply additive baseline files only when the plan is ready              |
-| `xcode-swiftui-entry-migration`    | Compare the starter or intentionally move a SwiftUI app toward UIKit | Ask whether UIKit is an architecture change before touching app entry code     |
-| `tuist-source-preserving-baseline` | Reuse baseline ideas while keeping Tuist                             | Keep Tuist manifests as source of truth and map ideas into existing commands   |
-| `tuist-swiftui-guided-decision`    | Evaluate a SwiftUI/Tuist app like SubPanda                           | Treat SwiftUI/Tuist guidance as binding until the user explicitly overrides it |
-| `unsupported-repo-shape`           | Inspect an uncommon repo shape                                       | Use the output as discovery only; add support before applying changes          |
+| Scenario                                        | Typical user goal                                                    | Agent behavior                                                                 |
+| ----------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `xcode-uikit-baseline-adoption`                 | Bring a UIKit/Xcode repo onto the starter baseline                   | Preview/apply additive baseline files only when the plan is ready              |
+| `xcode-swiftui-entry-migration`                 | Compare the starter or intentionally move a SwiftUI app toward UIKit | Ask whether UIKit is an architecture change before touching app entry code     |
+| `tuist-source-preserving-baseline`              | Reuse baseline ideas while keeping Tuist                             | Keep Tuist manifests as source of truth and map ideas into existing commands   |
+| `tuist-swiftui-guided-decision`                 | Evaluate a SwiftUI/Tuist app like SubPanda                           | Treat SwiftUI/Tuist guidance as binding until the user explicitly overrides it |
+| `tuist-swiftui-full-uikit-conversion-requested` | Fully replace a SwiftUI/Tuist app with the UIKit template shape      | Stop at planning; require dedicated migration tooling before edits             |
+| `cocoapods-workspace-guided-decision`           | Reuse starter ideas in a CocoaPods workspace app                     | Preserve `Podfile` and workspace dependency flow by default                    |
+| `swiftpm-nested-app-guided-decision`            | Evaluate package-first repos with nested iOS app projects            | Select the app project before any starter adoption                             |
+| `unsupported-repo-shape`                        | Inspect an uncommon repo shape                                       | Use the output as discovery only; add support before applying changes          |
+
+The analyzer also reports `adoption_intent`, `goal_supported_level`, `preserve_or_replace`, and `forbidden_actions`. Agents should treat those fields as the decision contract, especially when the user's goal is not a simple UIKit/Xcode baseline adoption.
 
 ## Safety Contract
 
@@ -75,14 +83,14 @@ Agents may promise these behaviors today:
 - Fresh UIKit app creation through `uikit-starter`.
 - Read-only analysis for existing iOS repos.
 - Additive baseline adoption for clean, git-backed UIKit/Xcode repos with one clear app target.
-- Migration-assisted planning for SwiftUI and Tuist repos.
+- Migration-assisted planning for SwiftUI, Tuist, CocoaPods workspace, and SwiftPM package-first repos.
 - Preservation of git history, remotes, bundle identifiers, signing settings, app source, resources, and product-specific docs by default.
 
 Agents must not promise these as automatic migration:
 
 - Arbitrary SwiftUI app entry replacement with UIKit.
 - Tuist-to-Xcode or Xcode-to-Tuist source-of-truth conversion.
-- Complex multi-workspace, multi-project, CocoaPods, or heavily customized build setup migration.
+- Complex multi-workspace, multi-project, CocoaPods, SwiftPM package-first, or heavily customized build setup migration.
 - Automatically wiring every generated `.xctestplan` into every shared scheme.
 - Guaranteed build success on another machine without matching Xcode, signing, GitHub, and local tooling.
 
@@ -96,6 +104,7 @@ The skill is backed by two scripts:
 The adoption backend contract is intentionally machine-readable:
 
 - JSON payloads include `schema_version: "1.0"`.
+- Plans include `adoption_intent`, `goal_supported_level`, `preserve_or_replace`, and `forbidden_actions`.
 - Exit code `0` means analysis completed, or apply/dry-run completed when requested and available.
 - Exit code `2` means apply/dry-run was requested, but the plan is not `Status: ready` / `Mode: xcode-adopt`.
 - Dry-run must report planned file creation/skips without writing files.

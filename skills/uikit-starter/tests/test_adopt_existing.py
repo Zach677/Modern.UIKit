@@ -84,6 +84,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
         self.assertEqual(plan.mode, "xcode-adopt")
         self.assertEqual(plan.scenario, "xcode-uikit-baseline-adoption")
         self.assertEqual(plan.status, "ready")
+        self.assertEqual(plan.goal_supported_level, "safe-now")
         self.assertTrue(any("--apply" in action for action in plan.recommended_next_actions))
         self.assertEqual(profile.app_targets, ["Fixture"])
         self.assertEqual(profile.bundle_identifiers, ["com.example.fixture"])
@@ -187,6 +188,7 @@ let project = Project(
         self.assertTrue(profile.has_swiftui_first_guidance)
         self.assertTrue(profile.has_tuist_source_guidance)
         self.assertEqual(plan.scenario, "tuist-swiftui-guided-decision")
+        self.assertEqual(plan.goal_supported_level, "plan-only")
         self.assertTrue(any("mise tasks" in change for change in plan.proposed_changes))
         self.assertFalse(
             any("Add a top-level Makefile" in change for change in plan.proposed_changes)
@@ -195,7 +197,48 @@ let project = Project(
         self.assertTrue(
             any("SwiftUI-first guidance" in action for action in plan.recommended_next_actions)
         )
+        self.assertEqual(
+            plan.preserve_or_replace["tuist"],
+            "preserve as source of truth by default",
+        )
+        self.assertTrue(any("Project.swift" in action for action in plan.forbidden_actions))
         self.assertTrue(any("Tuist/mise" in step for step in plan.verification))
+
+    def test_full_template_intent_on_tuist_swiftui_is_plan_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(
+                repo_root / "Project.swift",
+                """
+import ProjectDescription
+
+let project = Project(
+    name: "SubPanda",
+    targets: [
+        .target(name: "SubPanda", product: .app, bundleId: "org.zaxh.SubPanda"),
+    ]
+)
+""",
+            )
+            write(
+                repo_root / "SubPanda" / "Sources" / "App" / "SubPandaApp.swift",
+                "import SwiftUI\n@main\nstruct SubPandaApp: App {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile, "full-template-conversion")
+
+        self.assertEqual(plan.scenario, "tuist-swiftui-full-uikit-conversion-requested")
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertEqual(
+            plan.goal_supported_level,
+            "unsupported-without-new-migration-tooling",
+        )
+        self.assertTrue(any("Stop at this plan" in action for action in plan.recommended_next_actions))
+        self.assertTrue(
+            any("Full template conversion" in question for question in plan.recommended_questions)
+        )
 
     def test_swiftui_repo_asks_entry_strategy_question(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -216,6 +259,55 @@ let project = Project(
         self.assertEqual(plan.status, "needs-confirmation")
         self.assertTrue(any("SwiftUI root" in question for question in plan.recommended_questions))
         self.assertTrue(any("shell migration" in action for action in plan.recommended_next_actions))
+
+    def test_cocoapods_workspace_is_preserved_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            (repo_root / "Fixture.xcworkspace").mkdir()
+            write(repo_root / "Podfile", "target 'Fixture' do\nend\n")
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertTrue(profile.has_cocoapods)
+        self.assertEqual(plan.mode, "workspace-preserving-assisted")
+        self.assertEqual(plan.scenario, "cocoapods-workspace-guided-decision")
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertEqual(
+            plan.preserve_or_replace["cocoapods"],
+            "preserve Podfile and workspace dependency flow",
+        )
+        self.assertTrue(any("Podfile" in action for action in plan.forbidden_actions))
+
+    def test_swiftpm_nested_app_project_is_plan_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(repo_root / "Package.swift", "// swift-tools-version: 5.10\n")
+            (repo_root / "App" / "iOS" / "Fixture.xcodeproj").mkdir(parents=True)
+            write(
+                repo_root / "App" / "iOS" / "Fixture" / "FixtureApp.swift",
+                "import SwiftUI\n@main\nstruct FixtureApp: App {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(profile.xcode_projects, [])
+        self.assertEqual(profile.nested_xcode_projects, ["App/iOS/Fixture.xcodeproj"])
+        self.assertEqual(plan.mode, "swiftpm-app-assisted")
+        self.assertEqual(plan.scenario, "swiftpm-nested-app-guided-decision")
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertTrue(
+            any("nested iOS app project" in action for action in plan.recommended_next_actions)
+        )
 
     def test_multi_target_xcode_repo_requires_target_choice(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -288,6 +380,26 @@ let project = Project(
         self.assertFalse(makefile_exists)
         self.assertFalse(testplan_exists)
 
+    def test_partial_devkit_reports_missing_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            write(
+                repo_root / "Resources" / "DevKit" / "scripts" / "run_xcodebuild.sh",
+                "#!/usr/bin/env bash\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertFalse(profile.has_modern_uikit_devkit)
+        self.assertIn(
+            "Resources/DevKit/scripts/scan.license.sh",
+            profile.devkit_missing_files,
+        )
+        self.assertTrue(any("scan.license.sh" in change for change in plan.proposed_changes))
+
     def test_json_payload_contains_schema_and_exit_contract(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)
@@ -303,6 +415,8 @@ let project = Project(
         self.assertIn("2", payload["exit_code_contract"])
         self.assertIn("profile", payload)
         self.assertIn("plan", payload)
+        self.assertIn("adoption_intent", payload["plan"])
+        self.assertIn("preserve_or_replace", payload["plan"])
 
     def test_cli_dry_run_unavailable_exits_with_contract_code(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -335,6 +449,32 @@ let project = Project(
         payload = json.loads(result.stdout)
         self.assertEqual(payload["schema_version"], "1.0")
         self.assertEqual(payload["plan"]["status"], "blocked")
+
+    def test_cli_apply_json_reports_created_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            commit_all(repo_root)
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT_PATH),
+                    "--repo-path",
+                    str(repo_root),
+                    "--apply",
+                    "--format",
+                    "json",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["apply"]["applied"])
+        self.assertIn("Makefile", payload["apply"]["created_files"])
 
 
 if __name__ == "__main__":

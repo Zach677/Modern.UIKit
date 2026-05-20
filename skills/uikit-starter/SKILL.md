@@ -31,7 +31,7 @@ Primary responsibility:
    - Verify with the generated repo's own Makefile workflow.
 3. Adopt-existing mode:
    - Run the backend analyzer before asking migration questions.
-   - Read `Scenario`, `Recommended Questions`, `Recommended Next Actions`, `Warnings`, and `Blockers`.
+   - Read `Scenario`, `Adoption Intent`, `Goal Supported Level`, `Recommended Questions`, `Recommended Next Actions`, `Warnings`, `Blockers`, `Preserve Or Replace`, and `Forbidden Actions`.
    - Ask only the listed blocking questions.
    - Use dry-run before apply when additive baseline adoption is possible.
    - Apply only when the plan is `Status: ready` and `Mode: xcode-adopt`.
@@ -53,7 +53,9 @@ Primary responsibility:
 Backend output contract:
 
 - Use `--format json` when another agent or script needs stable output.
+- Use `--intent` when the user's goal is clear: `baseline-comparison`, `preserve-existing-workflow`, `full-template-conversion`, or `architecture-migration`.
 - JSON payloads include `schema_version`.
+- Plans include `goal_supported_level`, `preserve_or_replace`, and `forbidden_actions`.
 - Exit code `0`: analysis completed, or apply/dry-run completed when requested and available.
 - Exit code `2`: apply/dry-run was requested, but the plan is not ready xcode-adopt.
 - Dry-run must not write files.
@@ -65,6 +67,9 @@ Backend output contract:
 - `xcode-swiftui-entry-migration`: clarify whether UIKit is the new architecture direction before changing app entry code.
 - `tuist-source-preserving-baseline`: keep Tuist as source of truth and port compatible ideas into existing commands.
 - `tuist-swiftui-guided-decision`: respect SwiftUI-first and Tuist-source repo guidance until the user explicitly overrides it.
+- `tuist-swiftui-full-uikit-conversion-requested`: stop at planning because full conversion needs dedicated migration tooling.
+- `cocoapods-workspace-guided-decision`: preserve `Podfile`, workspace dependency flow, and existing validation commands by default.
+- `swiftpm-nested-app-guided-decision`: select the nested app project before applying any starter surface.
 - `unsupported-repo-shape`: treat analyzer output as discovery only.
 
 ## Preservation Rules
@@ -77,12 +82,15 @@ Preserve by default:
 - Existing app source and resources.
 - Product-specific documentation that does not conflict with the adopted workflow.
 - Tuist manifests and existing `mise` commands when the repo already owns them.
+- CocoaPods `Podfile` and workspace dependency flow when present.
+- SwiftPM package-first boundaries and nested app project layout when present.
 
 Do not automatically:
 
 - Replace SwiftUI app entry with UIKit.
 - Convert Tuist to Xcode or Xcode to Tuist.
 - Add a parallel Makefile to a Tuist repo that already has repo-scoped commands.
+- Delete `Podfile` or assume a nested Xcode project is the main app.
 - Overwrite existing files during adoption.
 - Commit LookInside or `LookInsideServer` wiring unless the user explicitly adopts shared debug tooling.
 
