@@ -69,6 +69,7 @@ Backend output contract:
 - `tuist-swiftui-guided-decision`: respect SwiftUI-first and Tuist-source repo guidance until the user explicitly overrides it.
 - `tuist-swiftui-full-uikit-conversion-requested`: stop at planning because full conversion needs dedicated migration tooling.
 - `cocoapods-workspace-guided-decision`: preserve `Podfile`, workspace dependency flow, and existing validation commands by default.
+- `workspace-only-guided-decision`: inspect workspace contents and identify the app project before applying starter files.
 - `swiftpm-nested-app-guided-decision`: select the nested app project before applying any starter surface.
 - `unsupported-repo-shape`: treat analyzer output as discovery only.
 

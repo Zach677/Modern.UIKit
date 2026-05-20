@@ -350,12 +350,24 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         blockers.append("Initialize git or run adoption from an existing git checkout.")
     if profile.has_dirty_worktree:
         blockers.append("Start from a clean worktree or create a backup branch first.")
-    if not profile.xcode_projects and not profile.nested_xcode_projects and not profile.has_tuist:
+    if (
+        not profile.xcode_projects
+        and not profile.nested_xcode_projects
+        and not profile.xcode_workspaces
+        and not profile.has_tuist
+    ):
         blockers.append("No Xcode project or Tuist manifest was detected.")
+    if profile.xcode_workspaces and not profile.xcode_projects and not profile.has_tuist:
+        questions.append("Which project inside the workspace owns the app target?")
+        warnings.append(
+            "Workspace-only adoption is plan-only until the app project and dependency source of truth are explicit."
+        )
     if not profile.xcode_projects and profile.nested_xcode_projects and not profile.has_tuist:
         warnings.append(
             "Only nested Xcode projects were detected; adoption must first choose the app project path."
         )
+    if profile.xcode_projects and not profile.app_targets and not profile.has_tuist:
+        questions.append("Which app target should receive the UIKit starter baseline?")
     if len(profile.xcode_projects) > 1:
         questions.append("Which root .xcodeproj is the main app project?")
     if len(profile.app_targets) > 1:
@@ -462,6 +474,9 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
     elif profile.has_cocoapods:
         mode = "workspace-preserving-assisted"
         scenario = "cocoapods-workspace-guided-decision"
+    elif profile.xcode_workspaces and not profile.xcode_projects:
+        mode = "workspace-preserving-assisted"
+        scenario = "workspace-only-guided-decision"
     elif profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
         mode = "swiftpm-app-assisted"
         scenario = "swiftpm-nested-app-guided-decision"
@@ -493,6 +508,12 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
             "Review the generated workspace-preserving plan before applying changes.",
             "Use the existing workspace and dependency commands for validation.",
             "Do not delete Podfile, Pods workspace state, or generated workspace settings in an automated adoption pass.",
+        ]
+    elif profile.xcode_workspaces and not profile.xcode_projects:
+        verification = [
+            "Review the workspace-only plan before applying changes.",
+            "Inspect the workspace contents and identify the app project before adopting starter surfaces.",
+            "Do not assume workspace ownership from the repository root alone.",
         ]
     elif profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
         verification = [
@@ -719,6 +740,13 @@ def recommended_next_actions(
             "Preserve Podfile and the existing workspace while comparing reusable Modern.UIKit practices.",
             "Do not apply baseline files until the main workspace, app target, and dependency workflow are confirmed.",
             "If a full template conversion is requested, plan dependency migration separately before code edits.",
+        ]
+
+    if scenario == "workspace-only-guided-decision":
+        return [
+            "Inspect the workspace contents before applying any starter files.",
+            "Identify the app project, app target, and dependency source of truth.",
+            "Use this as a discovery report until workspace ownership is explicit.",
         ]
 
     if scenario == "swiftpm-nested-app-guided-decision":

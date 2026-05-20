@@ -260,6 +260,49 @@ let project = Project(
         self.assertTrue(any("SwiftUI root" in question for question in plan.recommended_questions))
         self.assertTrue(any("shell migration" in action for action in plan.recommended_next_actions))
 
+    def test_baseline_comparison_intent_on_swiftui_repo_is_safe_now(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "FixtureApp.swift",
+                "import SwiftUI\n@main\nstruct FixtureApp: App {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile, "baseline-comparison")
+
+        self.assertEqual(plan.scenario, "xcode-swiftui-entry-migration")
+        self.assertEqual(plan.goal_supported_level, "safe-now")
+        self.assertEqual(
+            plan.preserve_or_replace["swiftui_entry"],
+            "preserve for comparison or workflow hardening",
+        )
+
+    def test_architecture_migration_intent_on_swiftui_repo_requires_first_slice(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "FixtureApp.swift",
+                "import SwiftUI\n@main\nstruct FixtureApp: App {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile, "architecture-migration")
+
+        self.assertEqual(plan.scenario, "xcode-swiftui-entry-migration")
+        self.assertEqual(plan.goal_supported_level, "plan-only")
+        self.assertTrue(any("architecture boundary" in question for question in plan.recommended_questions))
+        self.assertEqual(
+            plan.preserve_or_replace["swiftui_entry"],
+            "replace only after explicit architecture migration approval",
+        )
+
     def test_cocoapods_workspace_is_preserved_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)
@@ -286,6 +329,48 @@ let project = Project(
         )
         self.assertTrue(any("Podfile" in action for action in plan.forbidden_actions))
 
+    def test_full_template_intent_on_cocoapods_workspace_is_not_apply_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            (repo_root / "Fixture.xcworkspace").mkdir()
+            write(repo_root / "Podfile", "target 'Fixture' do\nend\n")
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile, "full-template-conversion")
+
+        self.assertEqual(plan.scenario, "cocoapods-workspace-guided-decision")
+        self.assertEqual(
+            plan.goal_supported_level,
+            "unsupported-without-new-migration-tooling",
+        )
+        self.assertTrue(any("Stop at this plan" in action for action in plan.recommended_next_actions))
+
+    def test_workspace_only_repo_is_guided_decision_not_unsupported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(
+                repo_root / "Fixture.xcworkspace" / "contents.xcworkspacedata",
+                "<Workspace version=\"1.0\"></Workspace>\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(profile.xcode_projects, [])
+        self.assertEqual(profile.xcode_workspaces, ["Fixture.xcworkspace"])
+        self.assertEqual(plan.mode, "workspace-preserving-assisted")
+        self.assertEqual(plan.scenario, "workspace-only-guided-decision")
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertTrue(any("workspace contents" in action for action in plan.recommended_next_actions))
+
     def test_swiftpm_nested_app_project_is_plan_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)
@@ -308,6 +393,42 @@ let project = Project(
         self.assertTrue(
             any("nested iOS app project" in action for action in plan.recommended_next_actions)
         )
+
+    def test_xcode_project_without_detected_app_target_requires_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(profile.app_targets, [])
+        self.assertEqual(plan.scenario, "xcode-uikit-baseline-adoption")
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertTrue(any("Which app target" in question for question in plan.recommended_questions))
+
+    def test_swiftui_view_inside_uikit_lifecycle_stays_xcode_adopt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            write(
+                repo_root / "Fixture" / "MarketingView.swift",
+                "import SwiftUI\nstruct MarketingView: View { var body: some View { Text(\"Hi\") } }\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertFalse(profile.has_swiftui_entry)
+        self.assertTrue(profile.has_uikit_lifecycle)
+        self.assertEqual(plan.scenario, "xcode-uikit-baseline-adoption")
+        self.assertEqual(plan.status, "ready")
 
     def test_multi_target_xcode_repo_requires_target_choice(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -379,6 +500,32 @@ let project = Project(
         self.assertIn("Fixture.xctestplan", result.would_create_files)
         self.assertFalse(makefile_exists)
         self.assertFalse(testplan_exists)
+
+    def test_apply_preserves_existing_makefile_and_devkit_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            write(repo_root / "Makefile", "custom:\n\t@echo custom\n")
+            write(
+                repo_root / "Resources" / "DevKit" / "scripts" / "run_xcodebuild.sh",
+                "#!/usr/bin/env bash\necho custom\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+            result = adopt_existing.apply_adoption(profile, plan, template_fixture())
+
+            makefile = (repo_root / "Makefile").read_text(encoding="utf-8")
+            run_script = (
+                repo_root / "Resources" / "DevKit" / "scripts" / "run_xcodebuild.sh"
+            ).read_text(encoding="utf-8")
+
+        self.assertTrue(result.applied)
+        self.assertIn("Makefile", result.skipped_files)
+        self.assertIn("Resources/DevKit/scripts/run_xcodebuild.sh", result.skipped_files)
+        self.assertEqual(makefile, "custom:\n\t@echo custom\n")
+        self.assertEqual(run_script, "#!/usr/bin/env bash\necho custom\n")
 
     def test_partial_devkit_reports_missing_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

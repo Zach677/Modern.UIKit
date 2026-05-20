@@ -71,6 +71,7 @@ Existing repos are not all trying to reach the same end state. The analyzer repo
 | `tuist-swiftui-guided-decision`                 | Evaluate a SwiftUI/Tuist app like SubPanda                           | Treat SwiftUI/Tuist guidance as binding until the user explicitly overrides it |
 | `tuist-swiftui-full-uikit-conversion-requested` | Fully replace a SwiftUI/Tuist app with the UIKit template shape      | Stop at planning; require dedicated migration tooling before edits             |
 | `cocoapods-workspace-guided-decision`           | Reuse starter ideas in a CocoaPods workspace app                     | Preserve `Podfile` and workspace dependency flow by default                    |
+| `workspace-only-guided-decision`                | Inspect a repo that exposes a workspace but no root project          | Identify the app project before adopting starter files                         |
 | `swiftpm-nested-app-guided-decision`            | Evaluate package-first repos with nested iOS app projects            | Select the app project before any starter adoption                             |
 | `unsupported-repo-shape`                        | Inspect an uncommon repo shape                                       | Use the output as discovery only; add support before applying changes          |
 
