@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 import tempfile
@@ -44,6 +45,21 @@ def commit_all(repo_root: Path) -> None:
 
 def template_fixture() -> Path:
     return Path(__file__).resolve().parents[3]
+
+
+def make_ready_xcode_fixture(repo_root: Path) -> None:
+    project_dir = repo_root / "Fixture.xcodeproj"
+    project_dir.mkdir()
+    write(
+        project_dir / "project.pbxproj",
+        "F829D09D2E252176005A7D1A /* FixtureTests */ = {isa = PBXNativeTarget; };\n",
+    )
+    write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+    write(
+        repo_root / "Fixture" / "AppDelegate.swift",
+        "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+    )
+    write(repo_root / "FixtureTests" / "FixtureTests.swift", "import Testing\n")
 
 
 class AnalyzeRepositoryTests(unittest.TestCase):
@@ -226,18 +242,7 @@ let project = Project(
     def test_apply_adds_missing_baseline_without_overwriting_existing_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)
-            project_dir = repo_root / "Fixture.xcodeproj"
-            project_dir.mkdir()
-            write(
-                project_dir / "project.pbxproj",
-                "F829D09D2E252176005A7D1A /* FixtureTests */ = {isa = PBXNativeTarget; };\n",
-            )
-            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
-            write(
-                repo_root / "Fixture" / "AppDelegate.swift",
-                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
-            )
-            write(repo_root / "FixtureTests" / "FixtureTests.swift", "import Testing\n")
+            make_ready_xcode_fixture(repo_root)
             write(repo_root / "README.md", "# Product README\n")
             commit_all(repo_root)
 
@@ -258,6 +263,78 @@ let project = Project(
         self.assertIn("IOS_SCHEME      := Fixture", makefile)
         self.assertIn("PRODUCT_BUNDLE_IDENTIFIER", base_config)
         self.assertEqual(readme, "# Product README\n")
+
+    def test_dry_run_reports_changes_without_writing_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+            result = adopt_existing.apply_adoption(
+                profile,
+                plan,
+                template_fixture(),
+                dry_run=True,
+            )
+            makefile_exists = (repo_root / "Makefile").exists()
+            testplan_exists = (repo_root / "Fixture.xctestplan").exists()
+
+        self.assertFalse(result.applied)
+        self.assertTrue(result.dry_run)
+        self.assertIn("Makefile", result.would_create_files)
+        self.assertIn("Fixture.xctestplan", result.would_create_files)
+        self.assertFalse(makefile_exists)
+        self.assertFalse(testplan_exists)
+
+    def test_json_payload_contains_schema_and_exit_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+            payload = adopt_existing.build_json_payload(profile, plan, None)
+
+        self.assertEqual(payload["schema_version"], "1.0")
+        self.assertIn("0", payload["exit_code_contract"])
+        self.assertIn("2", payload["exit_code_contract"])
+        self.assertIn("profile", payload)
+        self.assertIn("plan", payload)
+
+    def test_cli_dry_run_unavailable_exits_with_contract_code(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            commit_all(repo_root)
+            write(repo_root / "README.md", "# Dirty fixture\n")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT_PATH),
+                    "--repo-path",
+                    str(repo_root),
+                    "--dry-run",
+                    "--format",
+                    "json",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(result.returncode, 2)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["schema_version"], "1.0")
+        self.assertEqual(payload["plan"]["status"], "blocked")
 
 
 if __name__ == "__main__":

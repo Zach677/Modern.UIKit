@@ -74,6 +74,7 @@ python3 scripts/adopt_existing.py \
 - Preserve git history, remotes, bundle identifiers, signing settings, app source, resources, and product-specific docs by default.
 - First-slice automation focuses on existing UIKit/Xcode repos. SwiftUI and Tuist repos are migration-assisted: generate the plan, resolve the blocking decisions, and avoid pretending the migration is a simple scaffold rename.
 - For Tuist repos, preserve the manifest as source of truth when repo guidance says so; map compatible baseline ideas into existing Tuist/mise commands instead of adding a parallel Makefile by default.
+- Use `--dry-run` to preview additive baseline files without writing. Use `--format json` when another agent or script needs stable output; the JSON payload includes `schema_version`.
 - Only run `--apply` when the plan is `Status: ready` and `Mode: xcode-adopt`; it adds missing baseline files without overwriting existing files.
 
 Example apply:
@@ -83,6 +84,11 @@ python3 scripts/adopt_existing.py \
   --repo-path ~/Developer/CapArt \
   --apply
 ```
+
+Exit code contract:
+
+- `0`: analysis completed; apply or dry-run completed when requested and available.
+- `2`: `--apply` or `--dry-run` was requested but the plan is not ready xcode-adopt.
 
 Scenario guidance:
 

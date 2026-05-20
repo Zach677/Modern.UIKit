@@ -47,6 +47,14 @@ python3 skills/uikit-starter/scripts/adopt_existing.py \
   --repo-path /path/to/existing-app
 ```
 
+Preview the additive changes without writing files:
+
+```bash
+python3 skills/uikit-starter/scripts/adopt_existing.py \
+  --repo-path /path/to/existing-app \
+  --dry-run
+```
+
 Apply the conservative first slice only when the plan says `Status: ready`:
 
 ```bash
@@ -68,6 +76,29 @@ Existing repos are not all trying to reach the same end state. The analyzer repo
 | `tuist-source-preserving-baseline` | Reuse baseline ideas while keeping Tuist                             | Keep Tuist manifests as source of truth and map ideas into existing commands   |
 | `tuist-swiftui-guided-decision`    | Evaluate a SwiftUI/Tuist app like SubPanda                           | Treat SwiftUI/Tuist guidance as binding until the user explicitly overrides it |
 | `unsupported-repo-shape`           | Inspect an uncommon repo shape                                       | Use the output as discovery only; add support before applying changes          |
+
+## Adoption Support Contract
+
+Supported today:
+
+- Fresh UIKit project creation from the GitHub template through `uikit-starter`.
+- Read-only analysis for existing iOS repos.
+- Additive baseline adoption for clean, git-backed UIKit/Xcode repos with a single clear app target.
+- Migration-assisted planning for SwiftUI and Tuist repos.
+- JSON output with `schema_version: "1.0"` for agent and script consumption.
+
+Not yet supported as automatic migration:
+
+- Arbitrary SwiftUI app entry replacement with UIKit.
+- Tuist-to-Xcode or Xcode-to-Tuist source-of-truth conversion.
+- Complex multi-workspace, multi-project, CocoaPods, or heavily customized build setups.
+- Automatically wiring every generated `.xctestplan` into every shared scheme.
+- Guaranteeing build success on another machine without matching Xcode, signing, GitHub, and local tooling.
+
+Exit codes:
+
+- `0`: analysis completed; apply or dry-run completed when requested and available.
+- `2`: `--apply` or `--dry-run` was requested, but the plan is not `Status: ready` / `Mode: xcode-adopt`.
 
 ## What You Get
 

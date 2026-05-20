@@ -20,6 +20,10 @@ SKIP_DIR_NAMES = {
     "xcuserdata",
 }
 
+SCHEMA_VERSION = "1.0"
+EXIT_OK = 0
+EXIT_APPLY_NOT_READY = 2
+
 
 @dataclass(frozen=True)
 class RepositoryProfile:
@@ -70,8 +74,11 @@ class AdoptionNames:
 @dataclass(frozen=True)
 class ApplyResult:
     applied: bool
+    dry_run: bool
     created_files: list[str]
     skipped_files: list[str]
+    would_create_files: list[str]
+    would_skip_files: list[str]
     message: str
 
 
@@ -534,19 +541,19 @@ def write_test_plan_if_missing(
     names: AdoptionNames,
     profile: RepositoryProfile,
 ) -> tuple[str, bool] | None:
-    if profile.has_test_plan or not profile.xcode_projects or not profile.test_targets:
+    planned = planned_test_plan_if_missing(repo_root, names, profile)
+    if planned is None:
         return None
+    relative_path, created = planned
+    if not created:
+        return planned
 
     project_file = repo_root / profile.xcode_projects[0] / "project.pbxproj"
     target_id = infer_native_target_id(project_file, names.tests_name)
     if target_id is None:
         return None
 
-    relative_path = f"{names.project_name}.xctestplan"
     target_path = repo_root / relative_path
-    if target_path.exists():
-        return relative_path, False
-
     payload = {
         "configurations": [
             {
@@ -568,6 +575,26 @@ def write_test_plan_if_missing(
         "version": 1,
     }
     target_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return planned
+
+
+def planned_test_plan_if_missing(
+    repo_root: Path,
+    names: AdoptionNames,
+    profile: RepositoryProfile,
+) -> tuple[str, bool] | None:
+    if profile.has_test_plan or not profile.xcode_projects or not profile.test_targets:
+        return None
+    project_file = repo_root / profile.xcode_projects[0] / "project.pbxproj"
+    target_id = infer_native_target_id(project_file, names.tests_name)
+    if target_id is None:
+        return None
+
+    relative_path = f"{names.project_name}.xctestplan"
+    target_path = repo_root / relative_path
+    if target_path.exists():
+        return relative_path, False
+
     return relative_path, True
 
 
@@ -575,6 +602,8 @@ def apply_adoption(
     profile: RepositoryProfile,
     plan: AdoptionPlan,
     template_root: Path,
+    *,
+    dry_run: bool = False,
 ) -> ApplyResult:
     if plan.status != "ready" or plan.mode != "xcode-adopt":
         raise SystemExit("Adoption apply is only available for ready xcode-adopt plans.")
@@ -600,25 +629,57 @@ def apply_adoption(
 
     created_files: list[str] = []
     skipped_files: list[str] = []
+    would_create_files: list[str] = []
+    would_skip_files: list[str] = []
     for relative_path in baseline_files:
+        if dry_run:
+            target_path = repo_root / relative_path
+            if target_path.exists():
+                would_skip_files.append(relative_path)
+            else:
+                would_create_files.append(relative_path)
+            continue
         path, created = write_rendered_file(template_root, repo_root, relative_path, names)
         if created:
             created_files.append(path)
         else:
             skipped_files.append(path)
 
-    test_plan_result = write_test_plan_if_missing(repo_root, names, profile)
-    if test_plan_result is not None:
-        path, created = test_plan_result
-        if created:
-            created_files.append(path)
-        else:
-            skipped_files.append(path)
+    if dry_run:
+        test_plan_result = planned_test_plan_if_missing(repo_root, names, profile)
+        if test_plan_result is not None:
+            path, created = test_plan_result
+            if created:
+                would_create_files.append(path)
+            else:
+                would_skip_files.append(path)
+    else:
+        test_plan_result = write_test_plan_if_missing(repo_root, names, profile)
+        if test_plan_result is not None:
+            path, created = test_plan_result
+            if created:
+                created_files.append(path)
+            else:
+                skipped_files.append(path)
+
+    if dry_run:
+        return ApplyResult(
+            applied=False,
+            dry_run=True,
+            created_files=[],
+            skipped_files=[],
+            would_create_files=would_create_files,
+            would_skip_files=would_skip_files,
+            message="Dry run only; no files were changed.",
+        )
 
     return ApplyResult(
         applied=True,
+        dry_run=False,
         created_files=created_files,
         skipped_files=skipped_files,
+        would_create_files=[],
+        would_skip_files=[],
         message="Applied conservative Modern.UIKit baseline files without overwriting existing files.",
     )
 
@@ -673,6 +734,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--repo-path", default=".")
     parser.add_argument("--template-root", default=str(template_root_from_script()))
     parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
         "--format",
         choices=["text", "json"],
@@ -683,28 +745,74 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+    if args.apply and args.dry_run:
+        raise SystemExit("--apply and --dry-run cannot be used together.")
+
     profile = analyze_repository(Path(args.repo_path))
     plan = build_plan(profile)
-    apply_result = (
-        apply_adoption(profile, plan, Path(args.template_root)) if args.apply else None
-    )
+    apply_result = None
+    should_preview_or_apply = args.apply or args.dry_run
+    if should_preview_or_apply:
+        if plan.status != "ready" or plan.mode != "xcode-adopt":
+            if args.format == "json":
+                payload = build_json_payload(profile, plan, None)
+                print(json.dumps(payload, indent=2))
+            else:
+                print(format_text(profile, plan), end="")
+                action = "Apply" if args.apply else "Dry run"
+                print(
+                    f"{action} unavailable: adoption apply is only available for ready xcode-adopt plans."
+                )
+            return EXIT_APPLY_NOT_READY
+        apply_result = apply_adoption(
+            profile,
+            plan,
+            Path(args.template_root),
+            dry_run=args.dry_run,
+        )
+
     if args.format == "json":
-        payload = {"profile": asdict(profile), "plan": asdict(plan)}
-        if apply_result is not None:
-            payload["apply"] = asdict(apply_result)
+        payload = build_json_payload(profile, plan, apply_result)
         print(json.dumps(payload, indent=2))
     else:
         print(format_text(profile, plan), end="")
         if apply_result is not None:
             print("Apply Result:")
             print(f"- {apply_result.message}")
-            print(
-                f"- Created: {', '.join(apply_result.created_files) if apply_result.created_files else '(none)'}"
-            )
-            print(
-                f"- Skipped existing: {', '.join(apply_result.skipped_files) if apply_result.skipped_files else '(none)'}"
-            )
-    return 0
+            if apply_result.dry_run:
+                print(
+                    f"- Would create: {', '.join(apply_result.would_create_files) if apply_result.would_create_files else '(none)'}"
+                )
+                print(
+                    f"- Would skip existing: {', '.join(apply_result.would_skip_files) if apply_result.would_skip_files else '(none)'}"
+                )
+            else:
+                print(
+                    f"- Created: {', '.join(apply_result.created_files) if apply_result.created_files else '(none)'}"
+                )
+                print(
+                    f"- Skipped existing: {', '.join(apply_result.skipped_files) if apply_result.skipped_files else '(none)'}"
+                )
+    return EXIT_OK
+
+
+def build_json_payload(
+    profile: RepositoryProfile,
+    plan: AdoptionPlan,
+    apply_result: ApplyResult | None,
+) -> dict:
+    payload = {
+        "schema_version": SCHEMA_VERSION,
+        "exit_code_contract": {
+            str(EXIT_OK): "analysis completed; apply or dry-run completed when requested and available",
+            str(EXIT_APPLY_NOT_READY): "--apply or --dry-run was requested but the plan is not ready xcode-adopt",
+        },
+        "profile": asdict(profile),
+        "plan": asdict(plan),
+    }
+    if apply_result is not None:
+        payload["apply"] = asdict(apply_result)
+    return payload
 
 
 if __name__ == "__main__":
