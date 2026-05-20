@@ -20,6 +20,7 @@
 - `Makefile` is the default shell entry point for local build workflows.
 - `README.md` explains the template contract and local override flow.
 - `ModernUIKitTests/` contains the hosted unit tests for the app target.
+- `skills/uikit-starter/scripts/adopt_existing.py` is the read-only inspection and planning entry point for adopting this starter into an existing iOS repository.
 
 ### Application Layer
 
@@ -176,6 +177,7 @@
 - `ModernUIKit.xcworkspace` is the expected Xcode entrypoint for interactive work. Do not silently drift back to a project-only workflow.
 - Package resolution and license refresh use `make package-resolve` or `make scan-license`.
 - Release flows that refresh licenses against an intentionally dirty tree must pass `dirty=1`, for example `make package-resolve dirty=1`; this is forwarded as `ALLOW_DIRTY=1` to the scan script.
+- Existing-repo adoption starts with `python3 skills/uikit-starter/scripts/adopt_existing.py --repo-path <repo>`. Treat its output as the agent-facing decision plan; ask only the blocking questions it surfaces and preserve existing repo identity by default. Use `--apply` only for `Status: ready` / `Mode: xcode-adopt` plans; the first slice is additive and must not overwrite existing files.
 - Manually collected upstream license texts belong under `Resources/AdditionalLicenses/<PackageName>/LICENSE` or `COPYING`. The scanner prefers these files over bundled dependency licenses when both exist.
 - Format with `make format` and check formatting with `make format-lint`; submodules under `Vendor/` and build artifacts are excluded automatically.
 - Localization hygiene uses `make strip-xcstrings` to drop stale keys and sync source-language values, and `make validate-xcstrings` to check stale keys and missing translations across locales already used by the catalog.

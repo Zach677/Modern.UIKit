@@ -1,13 +1,18 @@
 ---
 name: uikit-starter
-description: Create a new GitHub repository and local workspace from the `Zach677/Modern.UIKit` template, then rename the Xcode project, targets, schemes, source folders, test bundle, bundle identifiers, and starter docs so the result is ready to build as a fresh UIKit app. Use when starting a new UIKit iOS project from the Modern.UIKit template or bootstrapping a new app through `gh`.
+description: Create a new GitHub repository and local workspace from the `Zach677/Modern.UIKit` template, or inspect an existing iOS repo and guide adoption of the Modern.UIKit baseline with minimal user burden. Use when starting a new UIKit iOS project, bootstrapping through `gh`, or evaluating whether an existing SwiftUI/Tuist/Xcode repo can adopt this UIKit starter.
 ---
 
 # UIKit Starter
 
 ## Workflow
 
-1. Collect the minimum inputs:
+1. Decide the mode with as little user burden as possible:
+   - If the target GitHub repo does not exist, use fresh-create mode.
+   - If the target GitHub repo exists but is not local, clone it first, then use adopt-existing mode.
+   - If a local repo already exists, use adopt-existing mode.
+   - If the repo uses SwiftUI or Tuist, use migration-assisted mode and ask only the blocking questions surfaced by the adoption plan.
+2. Collect the minimum inputs for fresh-create mode:
    - internal project name, for example `ShelfMusic`
    - optional display name, for example `Shelf Music`
    - GitHub repo name (`owner/repo` or `repo`)
@@ -15,9 +20,8 @@ description: Create a new GitHub repository and local workspace from the `Zach67
    - Apple Developer Team ID if the generated app should commit a shared signing identity
    - Swift language mode: `5.0` by default, or `6.0` for projects that want stricter compiler checks from day one
    - verification level: `build` by default, `test` for stronger validation
-2. Use GitHub-backed mode; local-copy mode is no longer a supported workflow.
-3. Run `scripts/create_project.py` with the chosen arguments.
-4. Review the resulting path and verification output before claiming success.
+3. Run `scripts/create_project.py` for fresh repos, or `scripts/adopt_existing.py` for existing repos.
+4. Review the resulting path, adoption plan, and verification output before claiming success.
 
 ## Mode
 
@@ -52,6 +56,32 @@ python3 scripts/create_project.py \
   --verify build
 ```
 
+### Adopt-existing mode
+
+- Use this mode when the repo already exists locally or on GitHub.
+- Start by cloning the existing repo if there is no local checkout yet; do not recreate it from the template.
+- Run the adoption analyzer before asking the user migration questions:
+
+```bash
+python3 scripts/adopt_existing.py \
+  --repo-path ~/Developer/CapArt \
+  --format text
+```
+
+- The analyzer is read-only unless `--apply` is passed. It detects Xcode projects, workspaces, Tuist manifests, SwiftUI entry points, UIKit lifecycle files, app targets, test targets, bundle identifiers, dirty worktrees, and existing Modern.UIKit DevKit surfaces.
+- Ask only the questions listed in `Recommended Questions`; do not ask for values that can be preserved from the existing repo.
+- Preserve git history, remotes, bundle identifiers, signing settings, app source, resources, and product-specific docs by default.
+- First-slice automation focuses on existing UIKit/Xcode repos. SwiftUI and Tuist repos are migration-assisted: generate the plan, resolve the blocking decisions, and avoid pretending the migration is a simple scaffold rename.
+- Only run `--apply` when the plan is `Status: ready` and `Mode: xcode-adopt`; it adds missing baseline files without overwriting existing files.
+
+Example apply:
+
+```bash
+python3 scripts/adopt_existing.py \
+  --repo-path ~/Developer/CapArt \
+  --apply
+```
+
 ## Input Rules
 
 - `--project-name` is the internal Xcode-facing name. Keep it identifier-safe, for example `ShelfMusic` or `Shelf-Music`.
@@ -65,6 +95,7 @@ python3 scripts/create_project.py \
 ### scripts/
 
 - `scripts/create_project.py` is the source of truth for scaffold execution.
+- `scripts/adopt_existing.py` is the source of truth for existing-repo inspection and adoption planning.
 - Do not hand-rename the cloned template first. Let the script perform the rename pass so project paths, schemes, targets, test bundle names, docs, and config files stay aligned.
 
 ## Notes

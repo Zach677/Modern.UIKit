@@ -1,13 +1,80 @@
 # Modern.UIKit
 
-A GitHub template repository for starting new UIKit iOS apps with a small, opinionated engineering baseline.
+> Start or adopt a programmatic UIKit app with a small engineering baseline: workspace-first Xcode entrypoints, Makefile-driven build/test flows, starter-safe signing config, and agent-readable project rules.
 
 ![Platform](https://img.shields.io/badge/platform-iOS%2017%2B%20%7C%20Mac%20Catalyst-blue)
 ![Swift](https://img.shields.io/badge/Swift-5.0%20default%20%7C%206.0%20optional-orange)
 ![Xcode](https://img.shields.io/badge/Xcode-iOS%2017%20SDK%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-It is intentionally not a framework-heavy architecture preset. The goal is simpler: keep the repetitive setup decisions that usually get re-done poorly, and leave the real app architecture free to grow from there.
+Modern.UIKit is intentionally not a full app architecture or framework preset. It keeps the repetitive setup decisions that are expensive to redo later, then leaves product architecture free to grow from the real app.
+
+Use it in two situations:
+
+- Create a fresh UIKit app from the GitHub template.
+- Inspect an existing iOS repo and adopt the starter baseline without discarding repo history, bundle identifiers, signing settings, or app source.
+
+## Quick Start
+
+### 1. Install the skill
+
+```bash
+npx skills add Zach677/Modern.UIKit --skill uikit-starter -g -y
+```
+
+### 2. Create a fresh app
+
+Ask your agent to use `$uikit-starter`, or run the scaffold script from this repo:
+
+```bash
+python3 skills/uikit-starter/scripts/create_project.py \
+  --project-name ShelfMusic \
+  --display-name "Shelf Music" \
+  --repo Zach677/shelf-music \
+  --bundle-id com.zach.shelfmusic \
+  --swift-version 6.0 \
+  --visibility private \
+  --parent-dir ~/Developer \
+  --verify build
+```
+
+### 3. Adopt an existing app
+
+Start with a read-only plan:
+
+```bash
+python3 skills/uikit-starter/scripts/adopt_existing.py \
+  --repo-path /path/to/existing-app
+```
+
+Apply the conservative first slice only when the plan says `Status: ready`:
+
+```bash
+python3 skills/uikit-starter/scripts/adopt_existing.py \
+  --repo-path /path/to/existing-app \
+  --apply
+```
+
+The first adoption slice supports clean UIKit/Xcode repos. SwiftUI and Tuist repos are detected as migration-assisted flows, so an agent can ask the few decisions that actually matter before changing code.
+
+## What You Get
+
+Core app baseline:
+
+- Programmatic UIKit startup through `main.swift`
+- No main storyboard, only `LaunchScreen.storyboard`
+- A dedicated `Application/` layer for lifecycle and bootstrap
+- A root `Interface/Root/` shell ready to become the first real screen
+- Shared `xcconfig` signing, bundle, and version files instead of hardcoded personal values
+- A small hosted unit test target, `ModernUIKit.xctestplan`, and `make test`
+- A `Makefile` plus log-aware DevKit scripts as uniform build/test entry points
+
+Agent workflow:
+
+- `uikit-starter` chooses fresh-create, adopt-existing, or migration-assisted mode from repo state.
+- Existing repo adoption preserves git history, remotes, bundle identifiers, signing settings, app source, and resources by default.
+- The adoption analyzer asks only blocking migration questions, such as which target is primary or whether Tuist should remain the source of truth.
+- Swift 5.0 is the default language mode; Swift 6.0 is available for fresh projects.
 
 ## Requirements
 
@@ -17,46 +84,7 @@ It is intentionally not a framework-heavy architecture preset. The goal is simpl
 
 Maintainer validation currently runs with Xcode 26.4.1, Build 17E202.
 
-## What You Get
-
-Core:
-
-- Programmatic UIKit startup through `main.swift`
-- No main storyboard, only `LaunchScreen.storyboard`
-- A dedicated `Application/` layer for lifecycle and bootstrap
-- A root `Interface/Root/` shell ready to become the first real screen
-- Shared `xcconfig` signing, bundle, and version files instead of hardcoded personal values
-- A small hosted unit test target, `ModernUIKit.xctestplan`, and `make test`
-- A `Makefile` + log-aware DevKit scripts as uniform build/test entry points
-
-Optional extras:
-
-- A reusable scaffold skill, `uikit-starter`, for creating fresh apps from this template
-- LookInside inspection guidance for local debug workflows
-- `AGENTS.md` / `CLAUDE.md` files for agent-driven workflows
-
-## Recommended Ways To Start
-
-### 1. Use the skill
-
-This is the best path when you want AI to create a fresh project end-to-end instead of manually cloning and renaming files.
-
-Install the skill:
-
-```bash
-npx skills add Zach677/Modern.UIKit --skill uikit-starter -g -y
-```
-
-What it does:
-
-- creates a new repo from the GitHub template
-- clones it locally
-- renames the Xcode project, workspace, schemes, xctestplan, source folders, and test target
-- updates bundle identifiers and display name
-- lets you choose Swift 5.0 or Swift 6.0 language mode
-- runs `make build` or `make test` for verification
-
-### 2. Use the GitHub template directly
+## Manual Template Path
 
 If you do not need the skill workflow, use the template repo directly:
 

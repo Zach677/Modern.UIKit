@@ -1,0 +1,160 @@
+from __future__ import annotations
+
+import importlib.util
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "adopt_existing.py"
+SPEC = importlib.util.spec_from_file_location("adopt_existing", SCRIPT_PATH)
+adopt_existing = importlib.util.module_from_spec(SPEC)
+assert SPEC.loader is not None
+sys.modules["adopt_existing"] = adopt_existing
+SPEC.loader.exec_module(adopt_existing)
+
+
+def write(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def commit_all(repo_root: Path) -> None:
+    subprocess.run(["git", "init"], cwd=repo_root, check=True, stdout=subprocess.DEVNULL)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.com"],
+        cwd=repo_root,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Test User"],
+        cwd=repo_root,
+        check=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=repo_root, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Initial fixture"],
+        cwd=repo_root,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+
+
+def template_fixture() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+class AnalyzeRepositoryTests(unittest.TestCase):
+    def test_detects_ready_uikit_xcode_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            write(
+                repo_root / "Configuration" / "Base.xcconfig",
+                "PRODUCT_BUNDLE_IDENTIFIER = com.example.fixture\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(plan.mode, "xcode-adopt")
+        self.assertEqual(plan.status, "ready")
+        self.assertEqual(profile.app_targets, ["Fixture"])
+        self.assertEqual(profile.bundle_identifiers, ["com.example.fixture"])
+
+    def test_dirty_worktree_blocks_adoption(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            commit_all(repo_root)
+            write(repo_root / "README.md", "# Dirty fixture\n")
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(plan.status, "blocked")
+        self.assertIn("clean worktree", " ".join(plan.blockers))
+
+    def test_tuist_repo_asks_source_of_truth_question(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(repo_root / "Project.swift", "import ProjectDescription\n")
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(plan.mode, "tuist-migration-assisted")
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertTrue(any("Tuist remain" in question for question in plan.recommended_questions))
+
+    def test_swiftui_repo_asks_entry_strategy_question(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "Fixture.xcodeproj").mkdir()
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "FixtureApp.swift",
+                "import SwiftUI\n@main\nstruct FixtureApp: App {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(plan.mode, "swiftui-migration-assisted")
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertTrue(any("SwiftUI root" in question for question in plan.recommended_questions))
+
+    def test_apply_adds_missing_baseline_without_overwriting_existing_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            project_dir = repo_root / "Fixture.xcodeproj"
+            project_dir.mkdir()
+            write(
+                project_dir / "project.pbxproj",
+                "F829D09D2E252176005A7D1A /* FixtureTests */ = {isa = PBXNativeTarget; };\n",
+            )
+            write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            write(repo_root / "FixtureTests" / "FixtureTests.swift", "import Testing\n")
+            write(repo_root / "README.md", "# Product README\n")
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+            result = adopt_existing.apply_adoption(profile, plan, template_fixture())
+
+            makefile = (repo_root / "Makefile").read_text(encoding="utf-8")
+            base_config = (repo_root / "Configuration" / "Base.xcconfig").read_text(
+                encoding="utf-8"
+            )
+            readme = (repo_root / "README.md").read_text(encoding="utf-8")
+
+        self.assertTrue(result.applied)
+        self.assertIn("Makefile", result.created_files)
+        self.assertIn("Fixture.xctestplan", result.created_files)
+        self.assertIn("Fixture.xcworkspace", makefile)
+        self.assertIn("IOS_SCHEME      := Fixture", makefile)
+        self.assertIn("PRODUCT_BUNDLE_IDENTIFIER", base_config)
+        self.assertEqual(readme, "# Product README\n")
+
+
+if __name__ == "__main__":
+    unittest.main()
