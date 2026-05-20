@@ -1,0 +1,109 @@
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### Not sure if this should be an issue?
+        Use this form to triage potential problems with Modern.UIKit. If the problem is confirmed and actionable, it can be promoted to an issue.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of Modern.UIKit is affected?
+      options:
+        - Fresh UIKit app creation
+        - Existing repo adoption analysis
+        - Generated project structure
+        - Build or test workflow
+        - Formatting, localization, or license workflow
+        - Agent skill documentation
+        - Repository documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect instead?
+      placeholder: |
+        Example: adopt_existing.py reports can_apply: true for a Tuist workspace, but I expected a planning-only result.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to Reproduce
+      description: Please list the smallest steps or command that reproduces the behavior.
+      placeholder: |
+        1. Clone or create a repo with ...
+        2. Run ...
+        3. See ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: repo-shape
+    attributes:
+      label: Repo Shape
+      description: If this involves adoption, describe the target repository shape.
+      placeholder: |
+        Example: SwiftUI app, Tuist-generated project, CocoaPods workspace, SwiftPM package-first repo, or plain Xcode workspace.
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Version or Commit
+      description: Which Modern.UIKit version, branch, tag, or commit are you using?
+      placeholder: main at abc1234
+    validations:
+      required: true
+
+  - type: input
+    id: xcode
+    attributes:
+      label: Xcode Version
+      description: Include the Xcode version if this involves generated projects, builds, tests, or iOS SDK behavior.
+      placeholder: Xcode 16.4
+    validations:
+      required: false
+
+  - type: input
+    id: agent-runtime
+    attributes:
+      label: Agent Runtime
+      description: If this involves skill usage, which agent/runtime did you use?
+      placeholder: Codex, Claude Code, or another skill-aware runtime
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Output
+      description: Paste the relevant command output, analyzer result, or build/test excerpt.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, links, or constraints that would help triage the problem.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing discussions and issues.
+          required: true
+        - label: I have included the smallest reproduction or command output I can provide.
+          required: true

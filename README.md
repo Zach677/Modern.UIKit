@@ -68,6 +68,15 @@ Current phase: **agent-native preview**.
 - [ ] Improve adoption accuracy ([#2](https://github.com/Zach677/Modern.UIKit/issues/2), [#3](https://github.com/Zach677/Modern.UIKit/issues/3)).
 - [ ] Design migration tooling after analysis is reliable ([#4](https://github.com/Zach677/Modern.UIKit/issues/4)).
 
+## Contributing
+
+Modern.UIKit uses a discussion-first contribution flow. Start with
+[Discussions](https://github.com/Zach677/Modern.UIKit/discussions) for bug
+triage, feature ideas, and questions. The issue tracker is reserved for
+accepted, actionable work.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full process.
+
 ## Agent Docs
 
 Detailed rules live outside the README:
