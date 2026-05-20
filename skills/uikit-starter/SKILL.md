@@ -72,6 +72,7 @@ python3 scripts/adopt_existing.py \
 - Ask only the questions listed in `Recommended Questions`; do not ask for values that can be preserved from the existing repo.
 - Preserve git history, remotes, bundle identifiers, signing settings, app source, resources, and product-specific docs by default.
 - First-slice automation focuses on existing UIKit/Xcode repos. SwiftUI and Tuist repos are migration-assisted: generate the plan, resolve the blocking decisions, and avoid pretending the migration is a simple scaffold rename.
+- For Tuist repos, preserve the manifest as source of truth when repo guidance says so; map compatible baseline ideas into existing Tuist/mise commands instead of adding a parallel Makefile by default.
 - Only run `--apply` when the plan is `Status: ready` and `Mode: xcode-adopt`; it adds missing baseline files without overwriting existing files.
 
 Example apply:

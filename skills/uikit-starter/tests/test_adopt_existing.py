@@ -101,6 +101,61 @@ class AnalyzeRepositoryTests(unittest.TestCase):
         self.assertEqual(plan.status, "needs-confirmation")
         self.assertTrue(any("Tuist remain" in question for question in plan.recommended_questions))
 
+    def test_tuist_manifest_targets_and_guidance_shape_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(
+                repo_root / "AGENTS.md",
+                "Use SwiftUI first.\nUse Tuist as the source of truth for project generation.\n",
+            )
+            write(repo_root / "mise.toml", "[tasks.test-ios]\nrun = \"bash scripts/test-ios.sh\"\n")
+            write(
+                repo_root / "Project.swift",
+                """
+import ProjectDescription
+
+let project = Project(
+    name: "SubPanda",
+    targets: [
+        .target(
+            name: "SubPanda",
+            product: .app,
+            bundleId: "org.zaxh.SubPanda"
+        ),
+        .target(
+            name: "SubPandaTests",
+            product: .unitTests,
+            bundleId: "org.zaxh.SubPandaTests"
+        ),
+    ]
+)
+""",
+            )
+            write(
+                repo_root / "SubPanda" / "Sources" / "App" / "SubPandaApp.swift",
+                "import SwiftUI\n@main\nstruct SubPandaApp: App {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(profile.app_targets, ["SubPanda"])
+        self.assertEqual(profile.test_targets, ["SubPandaTests"])
+        self.assertEqual(
+            profile.bundle_identifiers,
+            ["org.zaxh.SubPanda", "org.zaxh.SubPandaTests"],
+        )
+        self.assertTrue(profile.has_mise_tasks)
+        self.assertTrue(profile.has_swiftui_first_guidance)
+        self.assertTrue(profile.has_tuist_source_guidance)
+        self.assertTrue(any("mise tasks" in change for change in plan.proposed_changes))
+        self.assertFalse(
+            any("Add a top-level Makefile" in change for change in plan.proposed_changes)
+        )
+        self.assertTrue(any("SwiftUI first" in question for question in plan.recommended_questions))
+        self.assertTrue(any("Tuist/mise" in step for step in plan.verification))
+
     def test_swiftui_repo_asks_entry_strategy_question(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)

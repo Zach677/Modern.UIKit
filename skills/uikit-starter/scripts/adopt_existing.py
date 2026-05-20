@@ -34,6 +34,9 @@ class RepositoryProfile:
     app_targets: list[str]
     test_targets: list[str]
     bundle_identifiers: list[str]
+    has_mise_tasks: bool
+    has_swiftui_first_guidance: bool
+    has_tuist_source_guidance: bool
     has_makefile: bool
     has_modern_uikit_devkit: bool
     has_configuration_dir: bool
@@ -171,15 +174,20 @@ def infer_app_targets(repo_root: Path) -> list[str]:
         if should_skip(path, repo_root):
             continue
         targets.add(path.relative_to(repo_root).parts[0])
+    targets.update(name for name, product, _ in infer_tuist_targets(repo_root) if product == "app")
     return sorted(targets)
 
 
 def infer_test_targets(repo_root: Path) -> list[str]:
-    return sorted(
+    targets = {
         path.name
         for path in repo_root.iterdir()
         if path.is_dir() and path.name.endswith("Tests")
+    }
+    targets.update(
+        name for name, product, _ in infer_tuist_targets(repo_root) if product == "unitTests"
     )
+    return sorted(targets)
 
 
 def infer_bundle_identifiers(repo_root: Path) -> list[str]:
@@ -192,7 +200,36 @@ def infer_bundle_identifiers(repo_root: Path) -> list[str]:
         value = line.split("=", 1)[1].strip().rstrip(";").strip('"')
         if value:
             identifiers.add(value)
+    identifiers.update(bundle_id for _, _, bundle_id in infer_tuist_targets(repo_root))
     return sorted(identifiers)
+
+
+def infer_tuist_targets(repo_root: Path) -> list[tuple[str, str, str]]:
+    manifest = repo_root / "Project.swift"
+    if not manifest.exists():
+        return []
+    content = manifest.read_text(encoding="utf-8")
+    matches = re.finditer(
+        r"\.target\(\s*name:\s*\"([^\"]+)\".*?"
+        r"product:\s*\.(app|unitTests).*?"
+        r"bundleId:\s*\"([^\"]+)\"",
+        content,
+        flags=re.DOTALL,
+    )
+    return [(match.group(1), match.group(2), match.group(3)) for match in matches]
+
+
+def has_guidance(repo_root: Path, needles: list[str]) -> bool:
+    guidance_paths = [
+        path
+        for path in repo_root.rglob("AGENTS.md")
+        if not should_skip(path, repo_root)
+    ]
+    for path in guidance_paths:
+        content = path.read_text(encoding="utf-8")
+        if any(needle in content for needle in needles):
+            return True
+    return False
 
 
 def infer_native_target_id(project_file: Path, target_name: str) -> str | None:
@@ -231,6 +268,15 @@ def analyze_repository(repo_root: Path) -> RepositoryProfile:
         app_targets=infer_app_targets(repo_root),
         test_targets=infer_test_targets(repo_root),
         bundle_identifiers=infer_bundle_identifiers(repo_root),
+        has_mise_tasks=(repo_root / "mise.toml").exists(),
+        has_swiftui_first_guidance=has_guidance(
+            repo_root,
+            ["Use SwiftUI first", "Do not introduce UIKit"],
+        ),
+        has_tuist_source_guidance=has_guidance(
+            repo_root,
+            ["Tuist as the source of truth", "Use Tuist as the source of truth"],
+        ),
         has_makefile=(repo_root / "Makefile").exists(),
         has_modern_uikit_devkit=(
             repo_root / "Resources" / "DevKit" / "scripts" / "run_xcodebuild.sh"
@@ -257,24 +303,46 @@ def build_plan(profile: RepositoryProfile) -> AdoptionPlan:
     if len(profile.app_targets) > 1:
         questions.append("Which app target should receive the UIKit starter baseline?")
     if profile.has_tuist:
-        questions.append(
-            "Should Tuist remain the source of truth, or should this repo migrate to the Xcode workspace baseline?"
-        )
+        if profile.has_tuist_source_guidance:
+            warnings.append("Repo guidance says Tuist should remain the source of truth.")
+        else:
+            questions.append(
+                "Should Tuist remain the source of truth, or should this repo migrate to the Xcode workspace baseline?"
+            )
         warnings.append("Tuist adoption is plan-only in this first slice.")
     if profile.has_swiftui_entry and not profile.has_uikit_lifecycle:
-        questions.append(
-            "Should the first migration keep the SwiftUI root behind a UIKit shell, or replace the app entry directly?"
-        )
+        if profile.has_swiftui_first_guidance:
+            questions.append(
+                "This repo says SwiftUI first; confirm whether UIKit adoption is an architecture change or only a baseline comparison."
+            )
+            warnings.append("Repo guidance says not to introduce UIKit by default.")
+        else:
+            questions.append(
+                "Should the first migration keep the SwiftUI root behind a UIKit shell, or replace the app entry directly?"
+            )
         warnings.append("SwiftUI entry migration is plan-only in this first slice.")
 
-    if not profile.has_configuration_dir:
-        proposed_changes.append("Add the Modern.UIKit Configuration/*.xcconfig baseline.")
-    if not profile.has_modern_uikit_devkit:
-        proposed_changes.append("Add Resources/DevKit/scripts for log-aware build, test, localization, and license workflows.")
-    if not profile.has_makefile:
-        proposed_changes.append("Add a top-level Makefile that drives the adopted repo through shared targets.")
-    if not profile.has_test_plan:
-        proposed_changes.append("Add an app-level .xctestplan attached to the shared scheme.")
+    if profile.has_tuist:
+        proposed_changes.append(
+            "Keep Tuist manifests and existing repo-scoped commands as the source of truth by default."
+        )
+        if profile.has_mise_tasks:
+            proposed_changes.append(
+                "Map any adopted build/test ideas into existing mise tasks instead of adding a parallel Makefile."
+            )
+        if not profile.has_modern_uikit_devkit:
+            proposed_changes.append(
+                "Port only compatible DevKit ideas into the Tuist/mise workflow after the migration decision is explicit."
+            )
+    else:
+        if not profile.has_configuration_dir:
+            proposed_changes.append("Add the Modern.UIKit Configuration/*.xcconfig baseline.")
+        if not profile.has_modern_uikit_devkit:
+            proposed_changes.append("Add Resources/DevKit/scripts for log-aware build, test, localization, and license workflows.")
+        if not profile.has_makefile:
+            proposed_changes.append("Add a top-level Makefile that drives the adopted repo through shared targets.")
+        if not profile.has_test_plan:
+            proposed_changes.append("Add an app-level .xctestplan attached to the shared scheme.")
 
     proposed_changes.extend(
         [
@@ -299,6 +367,19 @@ def build_plan(profile: RepositoryProfile) -> AdoptionPlan:
         "ready": "Adoption can proceed with the conservative Xcode/UIKit baseline plan.",
     }[status]
 
+    if profile.has_tuist:
+        verification = [
+            "Review the generated migration-assisted plan before applying changes.",
+            "Use the repo's existing Tuist/mise commands for validation.",
+            "Do not add a parallel Makefile or xctestplan unless the migration decision explicitly changes the source of truth.",
+        ]
+    else:
+        verification = [
+            "Review the generated adoption plan before applying changes.",
+            "Run make build for baseline adoption.",
+            "Run make test when test files, xctestplan, or shared build settings change.",
+        ]
+
     return AdoptionPlan(
         mode=mode,
         status=status,
@@ -314,11 +395,7 @@ def build_plan(profile: RepositoryProfile) -> AdoptionPlan:
         ],
         blockers=blockers,
         warnings=warnings,
-        verification=[
-            "Review the generated adoption plan before applying changes.",
-            "Run make build for baseline adoption.",
-            "Run make test when test files, xctestplan, or shared build settings change.",
-        ],
+        verification=verification,
     )
 
 
@@ -499,6 +576,9 @@ def format_text(profile: RepositoryProfile, plan: AdoptionPlan) -> str:
         f"- App targets: {', '.join(profile.app_targets) or '(none)'}",
         f"- Test targets: {', '.join(profile.test_targets) or '(none)'}",
         f"- Bundle identifiers: {', '.join(profile.bundle_identifiers) or '(none)'}",
+        f"- mise tasks: {'yes' if profile.has_mise_tasks else 'no'}",
+        f"- SwiftUI-first guidance: {'yes' if profile.has_swiftui_first_guidance else 'no'}",
+        f"- Tuist source guidance: {'yes' if profile.has_tuist_source_guidance else 'no'}",
         "",
     ]
     sections = [

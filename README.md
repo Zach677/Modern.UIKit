@@ -74,6 +74,7 @@ Agent workflow:
 - `uikit-starter` chooses fresh-create, adopt-existing, or migration-assisted mode from repo state.
 - Existing repo adoption preserves git history, remotes, bundle identifiers, signing settings, app source, and resources by default.
 - The adoption analyzer asks only blocking migration questions, such as which target is primary or whether Tuist should remain the source of truth.
+- Tuist repos keep their manifest and existing `mise` commands as the default source of truth when repo guidance already says so.
 - Swift 5.0 is the default language mode; Swift 6.0 is available for fresh projects.
 
 ## Requirements
