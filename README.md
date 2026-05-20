@@ -55,7 +55,7 @@ The backend scripts exist for agent reliability. They provide deterministic file
 - Project renaming for app source, tests, workspace, scheme, bundle identifiers, display name, README, and starter docs.
 - Existing repo analysis without writing files.
 - Additive baseline adoption for clean UIKit/Xcode repos when the analyzer can identify the app target and produce `can_apply: true`.
-- Scenario-guided planning for SwiftUI, Tuist, CocoaPods workspace, and SwiftPM package-first repos.
+- Scenario-guided planning for SwiftUI, Tuist, CocoaPods workspace, SwiftPM package-first repos, and SwiftPM package-only apps/tools.
 - Intent-aware output for baseline comparison, preserving existing workflows, full template conversion, and architecture migration.
 - Stable JSON output with `schema_version: "1.0"` for multi-agent or scripted orchestration.
 
@@ -73,6 +73,7 @@ Existing repos are not all trying to reach the same end state. The analyzer repo
 | `cocoapods-workspace-guided-decision`           | Reuse starter ideas in a CocoaPods workspace app                     | Preserve `Podfile` and workspace dependency flow by default                    |
 | `workspace-only-guided-decision`                | Inspect a repo that exposes a workspace but no root project          | Identify the app project before adopting starter files                         |
 | `swiftpm-nested-app-guided-decision`            | Evaluate package-first repos with nested iOS app projects            | Select the app project before any starter adoption                             |
+| `swiftpm-package-guided-decision`               | Evaluate SwiftPM package-only apps, tools, or libraries              | Preserve `Package.swift`; identify app ownership before proposing changes      |
 | `unsupported-repo-shape`                        | Inspect an uncommon repo shape                                       | Use the output as discovery only; add support before applying changes          |
 
 The analyzer also reports `adoption_intent`, `goal_supported_level`, `can_apply`, `can_dry_run`, `requires_confirmation`, `write_scope`, `source_of_truth`, `preserve_or_replace`, and `forbidden_actions`. Agents should treat those fields as the decision contract, especially when the user's goal is not a simple UIKit/Xcode baseline adoption.
@@ -84,7 +85,7 @@ Agents may promise these behaviors today:
 - Fresh UIKit app creation through `uikit-starter`.
 - Read-only analysis for existing iOS repos.
 - Additive baseline adoption for clean, git-backed UIKit/Xcode repos only when the analyzer returns `can_apply: true`.
-- Migration-assisted planning for SwiftUI, Tuist, CocoaPods workspace, and SwiftPM package-first repos.
+- Migration-assisted planning for SwiftUI, Tuist, CocoaPods workspace, SwiftPM package-first repos, and SwiftPM package-only apps/tools.
 - Preservation of git history, remotes, bundle identifiers, signing settings, app source, resources, and product-specific docs by default.
 
 Agents must not promise these as automatic migration:
@@ -94,6 +95,29 @@ Agents must not promise these as automatic migration:
 - Complex multi-workspace, multi-project, CocoaPods, SwiftPM package-first, or heavily customized build setup migration.
 - Automatically wiring every generated `.xctestplan` into every shared scheme.
 - Guaranteed build success on another machine without matching Xcode, signing, GitHub, and local tooling.
+
+## Roadmap
+
+Current phase: agent-native preview.
+
+- Keep the fresh UIKit app path stable and boring.
+- Expand read-only smoke testing across real SwiftUI, Tuist, CocoaPods, SwiftPM package-first, and SwiftPM package-only repos.
+- Publish a small demo transcript that shows an agent inspecting a real repo, reporting `can_apply`, `source_of_truth`, `forbidden_actions`, and the next safe step.
+- Improve source-of-truth detection for XcodeGen, Fastlane, Bazel, Buck, Just, GitHub Actions, and custom script workflows.
+- Strengthen app target detection beyond simple `Info.plist` path heuristics.
+- Add migration tooling only after read-only analysis has enough real-world coverage.
+
+## Demo Shape
+
+A real demo for this repo should be a reproducible agent transcript, not a polished marketing video.
+
+The useful demo is:
+
+1. The user points Codex or Claude Code at a real existing iOS or macOS repo.
+2. The agent uses `uikit-starter` to run read-only analysis.
+3. The output shows the detected scenario, source of truth, whether `can_apply` is true, what must be preserved, and what the agent is forbidden to change.
+4. If `can_apply` is false, the demo stops at the plan and explains the next safe migration slice.
+5. If `can_apply` is true, the demo runs dry-run first, then applies only missing additive baseline files.
 
 ## Backend Contract
 

@@ -388,8 +388,19 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         and not profile.nested_xcode_projects
         and not profile.xcode_workspaces
         and not profile.has_tuist
+        and not profile.has_swift_package
     ):
         blockers.append("No Xcode project or Tuist manifest was detected.")
+    if (
+        profile.has_swift_package
+        and not profile.xcode_projects
+        and not profile.nested_xcode_projects
+        and not profile.has_tuist
+    ):
+        questions.append(
+            "Is this SwiftPM package an app target, a library/tool package, or only a reference project?"
+        )
+        warnings.append("SwiftPM package-only adoption is plan-only in this first slice.")
     if profile.xcode_workspaces and not profile.xcode_projects and not profile.has_tuist:
         questions.append("Which project inside the workspace owns the app target?")
         warnings.append(
@@ -526,6 +537,9 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
     elif profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
         mode = "swiftpm-app-assisted"
         scenario = "swiftpm-nested-app-guided-decision"
+    elif profile.has_swift_package and not profile.xcode_projects:
+        mode = "swiftpm-package-assisted"
+        scenario = "swiftpm-package-guided-decision"
     elif profile.has_swiftui_entry:
         mode = "swiftui-migration-assisted"
         scenario = "xcode-swiftui-entry-migration"
@@ -566,6 +580,12 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
             "Review the nested app selection before applying changes.",
             "Use the existing SwiftPM and app-project commands for validation.",
             "Do not assume the repository root is the app project root.",
+        ]
+    elif profile.has_swift_package and not profile.xcode_projects:
+        verification = [
+            "Review the SwiftPM package-only plan before applying changes.",
+            "Use the package's existing SwiftPM or custom script workflow for validation.",
+            "Do not add Xcode workspace, Makefile, or UIKit starter files until app ownership is explicit.",
         ]
     else:
         verification = [
@@ -682,6 +702,8 @@ def source_of_truth_for_profile(profile: RepositoryProfile) -> str:
         return "cocoapods-workspace"
     if profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
         return "swift-package-with-nested-app-project"
+    if profile.has_swift_package:
+        return "swift-package"
     if profile.xcode_workspaces and not profile.xcode_projects:
         return "workspace-only"
     if profile.xcode_projects:
@@ -700,6 +722,8 @@ def unsupported_reason_for_plan(
         return "Full conversion from Tuist + SwiftUI needs dedicated source-of-truth and lifecycle migration tooling."
     if profile.has_tuist:
         return "Full conversion from Tuist needs dedicated source-of-truth migration tooling."
+    if profile.has_swift_package and not profile.xcode_projects:
+        return "SwiftPM package-only repositories need app ownership and platform intent before conversion."
     if profile.has_swiftui_entry:
         return "Full conversion from SwiftUI entry needs dedicated lifecycle migration tooling."
     if profile.has_cocoapods:
@@ -877,6 +901,13 @@ def recommended_next_actions(
             "Select the nested iOS app project before applying any starter surface.",
             "Preserve SwiftPM package boundaries and app-specific commands by default.",
             "Use the plan as a comparison report until app project ownership is explicit.",
+        ]
+
+    if scenario == "swiftpm-package-guided-decision":
+        return [
+            "Treat this as a SwiftPM package analysis, not UIKit starter adoption.",
+            "Identify whether the package is an app, library, command-line tool, or macOS package before proposing changes.",
+            "Preserve Package.swift and existing scripts by default.",
         ]
 
     if mode == "unsupported":

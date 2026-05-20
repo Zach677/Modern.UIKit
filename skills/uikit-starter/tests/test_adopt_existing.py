@@ -457,6 +457,64 @@ struct FixtureApp: App {
             any("nested iOS app project" in action for action in plan.recommended_next_actions)
         )
 
+    def test_swiftpm_package_only_repo_is_guided_decision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(
+                repo_root / "Package.swift",
+                """
+// swift-tools-version: 6.2
+import PackageDescription
+
+let package = Package(
+    name: "PackageApp",
+    products: [.executable(name: "PackageApp", targets: ["PackageApp"])],
+    targets: [.executableTarget(name: "PackageApp")]
+)
+""",
+            )
+            write(
+                repo_root / "Sources" / "PackageApp" / "PackageApp.swift",
+                "import SwiftUI\n@main\nstruct PackageApp: App {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile, "baseline-comparison")
+
+        self.assertTrue(profile.has_swift_package)
+        self.assertEqual(profile.xcode_projects, [])
+        self.assertEqual(plan.mode, "swiftpm-package-assisted")
+        self.assertEqual(plan.scenario, "swiftpm-package-guided-decision")
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertEqual(plan.source_of_truth, "swift-package")
+        self.assertEqual(plan.goal_supported_level, "safe-to-plan-now")
+        self.assertFalse(plan.can_apply)
+
+    def test_full_template_intent_on_swiftpm_package_only_repo_is_unsupported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(repo_root / "Package.swift", "// swift-tools-version: 6.2\n")
+            write(
+                repo_root / "Sources" / "PackageApp" / "PackageApp.swift",
+                "import SwiftUI\n@main\nstruct PackageApp: App {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile, "full-template-conversion")
+
+        self.assertEqual(plan.scenario, "swiftpm-package-guided-decision")
+        self.assertEqual(
+            plan.goal_supported_level,
+            "unsupported-without-new-migration-tooling",
+        )
+        self.assertEqual(
+            plan.unsupported_reason,
+            "SwiftPM package-only repositories need app ownership and platform intent before conversion.",
+        )
+        self.assertFalse(plan.can_apply)
+
     def test_xcode_project_without_detected_app_target_requires_confirmation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)

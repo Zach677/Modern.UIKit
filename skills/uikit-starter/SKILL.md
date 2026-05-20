@@ -71,6 +71,7 @@ Backend output contract:
 - `cocoapods-workspace-guided-decision`: preserve `Podfile`, workspace dependency flow, and existing validation commands by default.
 - `workspace-only-guided-decision`: inspect workspace contents and identify the app project before applying starter files.
 - `swiftpm-nested-app-guided-decision`: select the nested app project before applying any starter surface.
+- `swiftpm-package-guided-decision`: preserve `Package.swift` and identify whether the package is an app, tool, library, or reference project.
 - `unsupported-repo-shape`: treat analyzer output as discovery only.
 
 ## Preservation Rules
@@ -85,6 +86,7 @@ Preserve by default:
 - Tuist manifests and existing `mise` commands when the repo already owns them.
 - CocoaPods `Podfile` and workspace dependency flow when present.
 - SwiftPM package-first boundaries and nested app project layout when present.
+- SwiftPM package-only layout and custom scripts when present.
 
 Do not automatically:
 
