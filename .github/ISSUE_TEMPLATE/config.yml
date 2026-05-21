@@ -2,4 +2,4 @@ blank_issues_enabled: false
 contact_links:
   - name: Features, Bug Reports, Questions
     url: https://github.com/Zach677/Modern.UIKit/discussions/new/choose
-    about: Start with Discussions unless a maintainer has already approved an actionable issue.
+    about: Our preferred starting point if you have any questions or suggestions about configuration, features or behavior.

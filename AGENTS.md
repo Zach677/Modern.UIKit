@@ -19,6 +19,9 @@
 - `Resources/DevKit/scripts/` contains reusable maintenance scripts for build/test log handling, scheme tidying, xcstrings hygiene, and license scanning.
 - `Makefile` is the default shell entry point for local build workflows.
 - `README.md` explains the template contract and local override flow.
+- `CONTRIBUTING.md`, `AI_POLICY.md`, and `HACKING.md` define the public contribution process, AI usage policy, and developer guide entrypoint.
+- `.github/` contains discussion-first community templates and the vouch automation workflows for contributor trust management.
+- `.agents/` contains optional agent-facing commands and skills that mirror project workflow preferences for compatible agent runtimes.
 - `ModernUIKitTests/` contains the hosted unit tests for the app target.
 - `skills/uikit-starter/scripts/adopt_existing.py` is the read-only inspection and planning entry point for adopting this starter into an existing iOS repository.
 
@@ -232,4 +235,5 @@ lookinside --help
 ## Documentation Sync
 
 - Structural directory or workflow changes must update this `AGENTS.md` in the same change.
+- Contribution workflow changes must keep `CONTRIBUTING.md`, `AI_POLICY.md`, `HACKING.md`, and `.github/` templates/workflows aligned.
 - If `README.md` stops matching the actual workspace, DevKit, or test workflow, update it immediately rather than leaving stale starter instructions behind.

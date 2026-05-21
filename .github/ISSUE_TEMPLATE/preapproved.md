@@ -1,12 +1,9 @@
 ---
 name: Pre-Discussed and Approved Topics
-about: Only for topics already discussed and approved in GitHub Discussions.
+about: |-
+  Only for topics already discussed and approved in the GitHub Discussions section.
 ---
 
-**Do not open a new issue unless this topic has already been discussed and approved.**
+**DO NOT OPEN A NEW ISSUE. PLEASE USE THE DISCUSSIONS SECTION.**
 
-Please use GitHub Discussions first:
-
-https://github.com/Zach677/Modern.UIKit/discussions/new/choose
-
-If a maintainer asked you to open this issue, link the discussion below.
+**I DIDN'T READ THE ABOVE LINE. PLEASE CLOSE THIS ISSUE.**
