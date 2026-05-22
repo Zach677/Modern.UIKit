@@ -55,7 +55,30 @@ The template itself is intentionally small:
 - `Application/`, `Interface/Root/`, and app `Resources/` folders.
 - Shared `Configuration/*.xcconfig` files for signing, bundle, and version settings.
 - Hosted Swift Testing target with an `.xctestplan`.
-- `Makefile` plus DevKit scripts for log-aware build/test, formatting, localization, scheme tidying, and license scanning.
+- `mise.toml` task automation for log-aware build/test, formatting, localization, scheme tidying, and license scanning.
+
+## Local Workflow
+
+Use `mise` as the public task entrypoint:
+
+```bash
+mise tasks
+mise build
+mise test
+mise format-lint
+mise validate-xcstrings
+```
+
+The mise tasks own the local workflow directly: Xcode invocation arguments,
+DerivedData isolation, module cache setup, and dirty-tree license flow are
+expressed in `mise.toml`. DevKit scripts stay narrow: they provide reusable
+log validation and maintenance helpers, not task orchestration. For release
+license refreshes that intentionally run on a dirty tree, pass the compatibility
+flag through mise:
+
+```bash
+mise package-resolve -- dirty=1
+```
 
 ## Roadmap
 
@@ -90,6 +113,7 @@ Detailed rules live outside the README:
 
 - Xcode with iOS 17 SDK or later.
 - Swift Testing support.
+- `mise` for the project task entrypoint.
 - GitHub CLI (`gh`) for repository workflows.
 - Node.js / `npx`, Prettier, `swiftformat`, and `xcbeautify` for the full Agent workflow.
 

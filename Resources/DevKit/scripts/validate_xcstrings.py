@@ -48,7 +48,7 @@ def validate_entry(
         return errors
 
     if entry.get("extractionState") == "stale":
-        errors.append(f"{key!r}: stale entry present (run `make strip-xcstrings`)")
+        errors.append(f"{key!r}: stale entry present (run `mise strip-xcstrings`)")
 
     localizations = entry.get("localizations")
     if not isinstance(localizations, dict) or not localizations:
@@ -74,7 +74,7 @@ def validate_entry(
         elif locale == source_lang and value != key:
             errors.append(
                 f"{key!r}: {locale} value does not mirror the key "
-                f"(got {value!r}; run `make strip-xcstrings`)"
+                f"(got {value!r}; run `mise strip-xcstrings`)"
             )
 
         if state != "translated":

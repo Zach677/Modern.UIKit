@@ -12,8 +12,8 @@
 #   2. Normalize the captured transcript into a plain-text log.
 #   3. Replay the normalized log through xcbeautify when available.
 #   4. Scan the log for error markers. If any are found, or the xcodebuild
-#      invocation itself exited non-zero, exit with a non-zero status so make
-#      halts the chain.
+#      invocation itself exited non-zero, exit with a non-zero status so the
+#      task runner halts the chain.
 #
 # Env:
 #   XCBUILD_LABEL  Optional label (e.g. "build-sim") used in failure messages.
@@ -96,9 +96,11 @@ else
 fi
 
 ERR_RE='(^|[[:space:]])error:|^\*\* (BUILD|TEST|ARCHIVE|CLEAN|ANALYZE) FAILED \*\*|^Testing failed:|^Failing tests:'
+IGNORED_ERR_RE='connection to service named com\.apple\.linkd\.autoShortcut|\[Connection\] Unable to (get synchronousRemoteObjectProxy|re-register with Process Instance Registry), error:'
 
 FOUND_ERRORS=0
-if grep -En "$ERR_RE" "$LOG" >/dev/null 2>&1; then
+ERROR_LINES=$(grep -En "$ERR_RE" "$LOG" | grep -Ev "$IGNORED_ERR_RE" || true)
+if [ -n "$ERROR_LINES" ]; then
     FOUND_ERRORS=1
 fi
 
@@ -107,7 +109,7 @@ if [ "$XC_STATUS" -ne 0 ] || [ "$FOUND_ERRORS" -ne 0 ]; then
     echo "❌ [$LABEL] xcodebuild failed (exit=$XC_STATUS, errors_in_log=$FOUND_ERRORS)" >&2
     if [ "$FOUND_ERRORS" -ne 0 ]; then
         echo "---- first 40 error lines from log ----" >&2
-        grep -En "$ERR_RE" "$LOG" | head -40 >&2 || true
+        printf "%s\n" "$ERROR_LINES" | head -40 >&2 || true
         echo "---------------------------------------" >&2
     fi
     if [ "$XC_STATUS" -ne 0 ]; then

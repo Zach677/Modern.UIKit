@@ -45,7 +45,8 @@ class GeneratedReadmeTests(unittest.TestCase):
 
             content = (repo_root / "README.md").read_text(encoding="utf-8")
 
-        self.assertIn("make run-ios", content)
+        self.assertIn("mise run-ios", content)
+        self.assertIn("project task automation", content)
         self.assertIn("install it on the booted simulator, and launch it", content)
 
     def test_generated_readme_documents_narrow_base_config(self) -> None:
@@ -67,6 +68,7 @@ class GeneratedReadmeTests(unittest.TestCase):
         self.assertIn("`Configuration/Base.xcconfig` is intentionally narrow", content)
         self.assertIn("leaves target/platform settings", content)
         self.assertIn("`SWIFT_VERSION`", content)
+        self.assertIn("DEVELOPMENT_TEAM =\n", content)
 
     def test_generated_readme_documents_committed_development_team(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -87,6 +89,28 @@ class GeneratedReadmeTests(unittest.TestCase):
         self.assertIn("DEVELOPMENT_TEAM = S56VW4D8X4", content)
         self.assertIn("PRODUCT_BUNDLE_IDENTIFIER = com.zach.capart", content)
         self.assertIn("Signing & Capabilities", content)
+
+
+class TemplatePruningTests(unittest.TestCase):
+    def test_prune_removes_xcuserdata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            user_data = (
+                repo_root
+                / "CapArt.xcworkspace"
+                / "xcuserdata"
+                / "star.xcuserdatad"
+                / "xcschemes"
+            )
+            user_data.mkdir(parents=True)
+            (user_data / "xcschememanagement.plist").write_text(
+                "<plist />",
+                encoding="utf-8",
+            )
+
+            create_project.prune_template_only_files(repo_root)
+
+            self.assertFalse((repo_root / "CapArt.xcworkspace" / "xcuserdata").exists())
 
 
 if __name__ == "__main__":

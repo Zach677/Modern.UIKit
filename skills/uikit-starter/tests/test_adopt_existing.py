@@ -636,7 +636,7 @@ let package = Package(
             plan = adopt_existing.build_plan(profile)
             result = adopt_existing.apply_adoption(profile, plan, template_fixture())
 
-            makefile = (repo_root / "Makefile").read_text(encoding="utf-8")
+            mise = (repo_root / "mise.toml").read_text(encoding="utf-8")
             base_config = (repo_root / "Configuration" / "Base.xcconfig").read_text(
                 encoding="utf-8"
             )
@@ -646,11 +646,11 @@ let package = Package(
             ).read_text(encoding="utf-8")
 
         self.assertTrue(result.applied)
-        self.assertIn("Makefile", result.created_files)
+        self.assertIn("mise.toml", result.created_files)
         self.assertIn("Fixture.xcworkspace/contents.xcworkspacedata", result.created_files)
         self.assertIn("Fixture.xctestplan", result.created_files)
-        self.assertIn("Fixture.xcworkspace", makefile)
-        self.assertIn("IOS_SCHEME      := Fixture", makefile)
+        self.assertIn("Fixture.xcworkspace", mise)
+        self.assertIn('IOS_SCHEME="${IOS_SCHEME:-Fixture}"', mise)
         self.assertIn("group:Fixture.xcodeproj", workspace)
         self.assertIn("PRODUCT_BUNDLE_IDENTIFIER", base_config)
         self.assertEqual(readme, "# Product README\n")
@@ -669,20 +669,20 @@ let package = Package(
                 template_fixture(),
                 dry_run=True,
             )
-            makefile_exists = (repo_root / "Makefile").exists()
+            mise_exists = (repo_root / "mise.toml").exists()
             workspace_exists = (repo_root / "Fixture.xcworkspace").exists()
             testplan_exists = (repo_root / "Fixture.xctestplan").exists()
 
         self.assertFalse(result.applied)
         self.assertTrue(result.dry_run)
-        self.assertIn("Makefile", result.would_create_files)
+        self.assertIn("mise.toml", result.would_create_files)
         self.assertIn("Fixture.xcworkspace/contents.xcworkspacedata", result.would_create_files)
         self.assertIn("Fixture.xctestplan", result.would_create_files)
-        self.assertFalse(makefile_exists)
+        self.assertFalse(mise_exists)
         self.assertFalse(workspace_exists)
         self.assertFalse(testplan_exists)
 
-    def test_apply_preserves_existing_makefile_and_devkit_files(self) -> None:
+    def test_apply_does_not_touch_existing_makefile_and_preserves_devkit_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)
             make_ready_xcode_fixture(repo_root)
@@ -703,7 +703,6 @@ let package = Package(
             ).read_text(encoding="utf-8")
 
         self.assertTrue(result.applied)
-        self.assertIn("Makefile", result.skipped_files)
         self.assertIn("Resources/DevKit/scripts/run_xcodebuild.sh", result.skipped_files)
         self.assertEqual(makefile, "custom:\n\t@echo custom\n")
         self.assertEqual(run_script, "#!/usr/bin/env bash\necho custom\n")
@@ -748,7 +747,7 @@ let package = Package(
         self.assertTrue(payload["plan"]["can_dry_run"])
         self.assertFalse(payload["plan"]["requires_confirmation"])
         self.assertEqual(payload["plan"]["source_of_truth"], "xcode-project")
-        self.assertIn("missing Makefile", payload["plan"]["write_scope"])
+        self.assertIn("missing mise task entrypoints", payload["plan"]["write_scope"])
         self.assertIn("preserve_or_replace", payload["plan"])
 
     def test_cli_dry_run_unavailable_exits_with_contract_code(self) -> None:
@@ -807,7 +806,7 @@ let package = Package(
         self.assertEqual(result.returncode, 0)
         payload = json.loads(result.stdout)
         self.assertTrue(payload["apply"]["applied"])
-        self.assertIn("Makefile", payload["apply"]["created_files"])
+        self.assertIn("mise.toml", payload["apply"]["created_files"])
 
 
 if __name__ == "__main__":

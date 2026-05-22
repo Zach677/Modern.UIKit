@@ -223,6 +223,11 @@ def write_generated_readme(
     development_team: str | None,
     swift_version: str,
 ) -> None:
+    development_team_line = (
+        f"DEVELOPMENT_TEAM = {development_team}"
+        if development_team
+        else "DEVELOPMENT_TEAM ="
+    )
     content = f"""# {display_name}
 
 `{display_name}` is a programmatic UIKit iOS app with a code-driven starter baseline.
@@ -235,33 +240,36 @@ def write_generated_readme(
 - `Resources/DevKit/scripts/` — reusable build, test, localization, and license-maintenance scripts
 - `{project_name}.xcworkspace` — default Xcode entrypoint
 - `{project_name}.xctestplan` — shared test plan attached to the app scheme
+- `mise.toml` — project task automation
 
 ## Development
 
-Build and test through the top-level `Makefile`:
+Build and test through `mise` tasks. The tasks own the local workflow directly
+and use DevKit scripts only for reusable log parsing and maintenance helpers:
 
 ```bash
-make build
-make build-ios
-make build-sim
-make build-device
-make build-catalyst
-make run-ios
-make run-sim
-make test
-make test-unit
-make package-resolve
-make strip-xcstrings
-make validate-xcstrings
-make tidy-schemes
-make clean
+mise tasks
+mise build
+mise build-ios
+mise build-sim
+mise build-device
+mise build-catalyst
+mise run-ios
+mise run-sim
+mise test
+mise test-unit
+mise package-resolve
+mise strip-xcstrings
+mise validate-xcstrings
+mise tidy-schemes
+mise clean
 ```
 
 Defaults:
 
-- `make build` covers the primary development paths: iOS Simulator plus Mac Catalyst
-- `make run-ios` / `make run-sim` build the simulator app, install it on the booted simulator, and launch it
-- `make test` / `make test-unit` run on the Mac Catalyst destination
+- `mise build` covers the primary development paths: iOS Simulator plus Mac Catalyst
+- `mise run-ios` / `mise run-sim` build the simulator app, install it on the booted simulator, and launch it
+- `mise test` / `mise test-unit` run on the Mac Catalyst destination
 - The project uses Swift {swift_version} language mode
 - `Resources/DevKit/scripts/run_xcodebuild.sh` treats the build log as the source of truth instead of trusting exit codes alone
 
@@ -298,7 +306,7 @@ If a coding agent configures LookInside, ask it to follow `AGENTS.md` and the `l
 The app uses these shared signing defaults in `Configuration/Base.xcconfig`:
 
 ```xcconfig
-DEVELOPMENT_TEAM = {development_team or ""}
+{development_team_line}
 PRODUCT_BUNDLE_IDENTIFIER = {bundle_id}
 ```
 
@@ -332,6 +340,9 @@ PRODUCT_BUNDLE_IDENTIFIER = com.yourcompany.yourapp
 
 def prune_template_only_files(repo_root: Path) -> None:
     remove_path_if_exists(repo_root / "skills" / "uikit-starter")
+    for path in sorted(repo_root.rglob("xcuserdata"), reverse=True):
+        if path.is_dir():
+            shutil.rmtree(path)
     skills_dir = repo_root / "skills"
     if skills_dir.exists() and not any(skills_dir.iterdir()):
         skills_dir.rmdir()
@@ -369,7 +380,8 @@ def create_from_github(
 def verify_repo(repo_root: Path, mode: str) -> None:
     if mode == "none":
         return
-    command = ["make", "build"] if mode == "build" else ["make", "test"]
+    run(["mise", "trust", "mise.toml"], cwd=repo_root)
+    command = ["mise", "build"] if mode == "build" else ["mise", "test"]
     run(command, cwd=repo_root)
 
 

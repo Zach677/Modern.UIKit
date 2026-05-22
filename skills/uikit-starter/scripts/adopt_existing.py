@@ -432,7 +432,7 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         and not profile.has_cocoapods
     ):
         questions.append(
-            "This repo already has command surfaces; should Modern.UIKit checks be translated into them instead of adding a Makefile?"
+            "This repo already has command surfaces; should Modern.UIKit checks be translated into them instead of adding new mise tasks?"
         )
         warnings.append(
             f"Existing command surfaces detected: {', '.join(profile.existing_command_surfaces)}."
@@ -478,7 +478,7 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         )
         if profile.has_mise_tasks:
             proposed_changes.append(
-                "Map any adopted build/test ideas into existing mise tasks instead of adding a parallel Makefile."
+                "Map any adopted build/test ideas into existing mise tasks instead of adding a parallel command surface."
             )
         if not profile.has_modern_uikit_devkit:
             proposed_changes.append(
@@ -503,8 +503,10 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
             proposed_changes.append(
                 f"Add missing Resources/DevKit/scripts for log-aware workflows: {missing}."
             )
-        if not profile.has_makefile:
-            proposed_changes.append("Add a top-level Makefile that drives the adopted repo through shared targets.")
+        if not profile.has_mise_tasks:
+            proposed_changes.append(
+                "Add Modern.UIKit mise task automation for build, test, formatting, localization, schemes, and license workflows."
+            )
         if not profile.has_test_plan:
             proposed_changes.append("Add an app-level .xctestplan attached to the shared scheme.")
 
@@ -561,7 +563,7 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         verification = [
             "Review the generated migration-assisted plan before applying changes.",
             "Use the repo's existing Tuist/mise commands for validation.",
-            "Do not add a parallel Makefile or xctestplan unless the migration decision explicitly changes the source of truth.",
+            "Do not add a parallel command surface or xctestplan unless the migration decision explicitly changes the source of truth.",
         ]
     elif profile.has_cocoapods:
         verification = [
@@ -585,13 +587,13 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         verification = [
             "Review the SwiftPM package-only plan before applying changes.",
             "Use the package's existing SwiftPM or custom script workflow for validation.",
-            "Do not add Xcode workspace, Makefile, or UIKit starter files until app ownership is explicit.",
+            "Do not add Xcode workspace, mise automation, or UIKit starter files until app ownership is explicit.",
         ]
     else:
         verification = [
             "Review the generated adoption plan before applying changes.",
-            "Run make build for baseline adoption.",
-            "Run make test when test files, xctestplan, or shared build settings change.",
+            "Run mise build for baseline adoption.",
+            "Run mise test when test files, xctestplan, or shared build settings change.",
         ]
 
     goal_supported_level = infer_goal_supported_level(
@@ -689,7 +691,7 @@ def write_scope_for_plan(mode: str, status: str, adoption_intent: str) -> list[s
     return [
         "missing Configuration/*.xcconfig files",
         "missing Resources/DevKit/scripts files",
-        "missing Makefile",
+        "missing mise task entrypoints",
         "missing app workspace wrapper",
         "missing app test plan when a test target can be identified",
     ]
@@ -769,11 +771,8 @@ def preserve_or_replace_matrix(
         if scenario == "xcode-uikit-baseline-adoption"
         else "preserve existing project/workspace entrypoints"
     )
-    matrix["makefile"] = (
-        "add if missing for ready Xcode/UIKit adoption"
-        if scenario == "xcode-uikit-baseline-adoption" and not profile.has_makefile
-        else "preserve existing command surface"
-    )
+    if profile.has_makefile:
+        matrix["makefile"] = "preserve existing command surface"
     matrix["devkit"] = (
         "complete missing baseline files"
         if scenario == "xcode-uikit-baseline-adoption" and profile.devkit_missing_files
@@ -879,7 +878,7 @@ def recommended_next_actions(
     if scenario == "tuist-source-preserving-baseline":
         return [
             "Preserve Tuist manifests as source of truth by default.",
-            "Map compatible baseline ideas into existing Tuist or mise workflows instead of adding parallel Xcode/Makefile surfaces.",
+            "Map compatible baseline ideas into existing Tuist or mise workflows instead of adding parallel Xcode command surfaces.",
         ]
 
     if scenario == "cocoapods-workspace-guided-decision":
@@ -974,7 +973,7 @@ def write_rendered_file(
         return relative_path, False
 
     target_path.parent.mkdir(parents=True, exist_ok=True)
-    if source_path.suffix in {".sh", ".py", ".xcconfig"} or source_path.name == "Makefile":
+    if source_path.suffix in {".sh", ".py", ".xcconfig", ".toml"}:
         target_path.write_text(rendered_text(source_path, names), encoding="utf-8")
         shutil.copymode(source_path, target_path)
     else:
@@ -1112,7 +1111,7 @@ def apply_adoption(
         "Configuration/Release.xcconfig",
         "Configuration/Version.xcconfig",
         *DEVKIT_BASELINE_FILES,
-        "Makefile",
+        "mise.toml",
     ]
 
     created_files: list[str] = []

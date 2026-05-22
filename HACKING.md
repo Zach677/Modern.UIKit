@@ -13,5 +13,14 @@ Use the current project docs as the source of truth:
 - [skills/uikit-starter/SKILL.md](skills/uikit-starter/SKILL.md) for the
   agent-facing workflow contract.
 
+Local task automation is exposed through `mise`:
+
+```bash
+mise tasks
+mise build
+mise test
+mise format-lint
+```
+
 This file is reserved for future local development, build, test, debugging,
 and release details that should not live in the contribution process document.

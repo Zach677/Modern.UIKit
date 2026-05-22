@@ -28,7 +28,7 @@ Primary responsibility:
 2. Fresh-create mode:
    - Collect only the missing inputs: internal project name, optional display name, repo name, bundle identifier when needed, optional Apple Developer Team ID, Swift language mode, and verification level.
    - Run the backend creation script.
-   - Verify with the generated repo's own Makefile workflow.
+   - Verify with the generated repo's own mise task workflow.
 3. Adopt-existing mode:
    - Run the backend analyzer before asking migration questions.
    - Read `Scenario`, `Adoption Intent`, `Goal Supported Level`, `can_apply`, `can_dry_run`, `requires_confirmation`, `Recommended Questions`, `Recommended Next Actions`, `Warnings`, `Blockers`, `Preserve Or Replace`, and `Forbidden Actions`.
@@ -92,7 +92,7 @@ Do not automatically:
 
 - Replace SwiftUI app entry with UIKit.
 - Convert Tuist to Xcode or Xcode to Tuist.
-- Add a parallel Makefile to a Tuist repo that already has repo-scoped commands.
+- Add a parallel command surface to a Tuist repo that already has repo-scoped commands.
 - Delete `Podfile` or assume a nested Xcode project is the main app.
 - Overwrite existing files during adoption.
 - Commit LookInside or `LookInsideServer` wiring unless the user explicitly adopts shared debug tooling.
