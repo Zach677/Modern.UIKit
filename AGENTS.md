@@ -18,6 +18,7 @@
 - `Configuration/` contains shared Xcode build configuration files (`Base.xcconfig`, `Development.xcconfig`, `Release.xcconfig`, `Version.xcconfig`) used by the app target.
 - `Resources/DevKit/scripts/` contains reusable maintenance scripts for build/test log handling, scheme tidying, xcstrings hygiene, and license scanning.
 - `mise.toml` is the default task entrypoint for local build workflows.
+- `.gitattributes` keeps GitHub Linguist language statistics focused on Swift app source by excluding repository automation, DevKit scripts, and agent skill tooling.
 - `README.md` explains the template contract and local override flow.
 - `CONTRIBUTING.md`, `AI_POLICY.md`, and `HACKING.md` define the public contribution process, AI usage policy, and developer guide entrypoint.
 - `.github/` contains discussion-first community templates and the vouch automation workflows for contributor trust management.
@@ -181,6 +182,7 @@
 - Package resolution and license refresh use `mise package-resolve` or `mise scan-license`.
 - Release flows that refresh licenses against an intentionally dirty tree must pass `dirty=1`, for example `mise package-resolve -- dirty=1`; this is forwarded by the mise task as `ALLOW_DIRTY=1` to the scan script.
 - Existing-repo adoption starts with `python3 skills/uikit-starter/scripts/adopt_existing.py --repo-path <repo>`. Treat its output as the agent-facing decision plan; ask only the blocking questions it surfaces and preserve existing repo identity by default. Use `--apply` only for `Status: ready` / `Mode: xcode-adopt` plans; the first slice is additive and must not overwrite existing files.
+- Keep `.gitattributes` Linguist exclusions scoped to repository tooling and automation surfaces. Do not exclude app target source or Swift tests from language statistics.
 - Manually collected upstream license texts belong under `Resources/AdditionalLicenses/<PackageName>/LICENSE` or `COPYING`. The scanner prefers these files over bundled dependency licenses when both exist.
 - Format with `mise format` and check formatting with `mise format-lint`; submodules under `Vendor/` and build artifacts are excluded automatically.
 - Localization hygiene uses `mise strip-xcstrings` to drop stale keys and sync source-language values, and `mise validate-xcstrings` to check stale keys and missing translations across locales already used by the catalog.

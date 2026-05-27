@@ -1,0 +1,7 @@
+# Keep GitHub Linguist focused on the UIKit starter source.
+# These paths are repository automation, adoption tooling, or agent prompts.
+.agents/** linguist-vendored
+.github/** linguist-vendored
+Resources/DevKit/scripts/** linguist-vendored
+skills/** linguist-vendored
+mise.toml linguist-vendored
