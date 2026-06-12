@@ -3,7 +3,7 @@
 > Agent-native UIKit starter for Codex, Claude Code, and other coding agents.
 
 ![Platform](https://img.shields.io/badge/platform-iOS%2017%2B%20%7C%20Mac%20Catalyst-blue)
-![Swift](https://img.shields.io/badge/Swift-5.0%20default%20%7C%206.0%20optional-orange)
+![Swift](https://img.shields.io/badge/Swift-6.0%20default%20%7C%205.0%20optional-orange)
 ![Xcode](https://img.shields.io/badge/Xcode-iOS%2017%20SDK%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 

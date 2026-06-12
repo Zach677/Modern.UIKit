@@ -113,5 +113,48 @@ class TemplatePruningTests(unittest.TestCase):
             self.assertFalse((repo_root / "CapArt.xcworkspace" / "xcuserdata").exists())
 
 
+class SwiftFormatVersionTests(unittest.TestCase):
+    MISE_FORMAT_TASKS = (
+        "[tasks.format]\n"
+        'run = """\n'
+        "swiftformat . \\\n"
+        "    --swift-version 6.0 \\\n"
+        '"""\n'
+        "[tasks.format-lint]\n"
+        'run = """\n'
+        "swiftformat . \\\n"
+        "    --swift-version 6.0 \\\n"
+        "    --lint\n"
+        '"""\n'
+    )
+
+    def test_swift_5_mode_rewrites_every_swiftformat_version(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "mise.toml").write_text(
+                self.MISE_FORMAT_TASKS, encoding="utf-8"
+            )
+
+            create_project.align_swiftformat_swift_version(repo_root, "5.0")
+
+            content = (repo_root / "mise.toml").read_text(encoding="utf-8")
+            self.assertNotIn("--swift-version 6.0", content)
+            self.assertEqual(content.count("--swift-version 5.0"), 2)
+
+    def test_default_swift_6_mode_keeps_mise_toml_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            (repo_root / "mise.toml").write_text(
+                self.MISE_FORMAT_TASKS, encoding="utf-8"
+            )
+
+            create_project.align_swiftformat_swift_version(repo_root, "6.0")
+
+            self.assertEqual(
+                (repo_root / "mise.toml").read_text(encoding="utf-8"),
+                self.MISE_FORMAT_TASKS,
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

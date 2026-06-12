@@ -177,6 +177,14 @@ def replace_literal(path: Path, old: str, new: str) -> None:
     path.write_text(content.replace(old, new), encoding="utf-8")
 
 
+def align_swiftformat_swift_version(repo_root: Path, swift_version: str) -> None:
+    replace_literal(
+        repo_root / "mise.toml",
+        "--swift-version 6.0",
+        f"--swift-version {swift_version}",
+    )
+
+
 def remove_path_if_exists(path: Path) -> None:
     if not path.exists():
         return
@@ -397,7 +405,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--swift-version",
         choices=["5.0", "6.0"],
-        default="5.0",
+        default="6.0",
     )
     parser.add_argument("--parent-dir", default=".")
     parser.add_argument(
@@ -507,6 +515,7 @@ def main() -> int:
         'PRODUCT_BUNDLE_IDENTIFIER = "com.example.$(PRODUCT_NAME:rfc1034identifier)";',
         f'PRODUCT_BUNDLE_IDENTIFIER = "{tests_bundle_id}";',
     )
+    align_swiftformat_swift_version(local_repo_path, args.swift_version)
     if workspace_dir and workspace_dir.exists():
         rename_path(workspace_dir, f"{project_name}.xcworkspace")
     if testplan_file and testplan_file.exists():

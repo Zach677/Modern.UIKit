@@ -104,7 +104,7 @@ Do not automatically:
 - `repo`: GitHub repository name.
 - `bundle-id`: optional; defaults to a generated `com.example.*` value.
 - `development-team`: optional; use only when the generated app should commit a shared signing identity.
-- `swift-version`: `5.0` by default, `6.0` when stricter compiler diagnostics are desired.
+- `swift-version`: `6.0` by default, `5.0` when the generated app must stay on the legacy language mode.
 - `verify`: `build` by default, `test` when stronger validation is worth the extra time.
 
 ## Notes
