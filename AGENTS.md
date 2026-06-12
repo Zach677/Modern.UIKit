@@ -125,11 +125,13 @@
 ## Localization Rules
 
 - All user-facing strings in the app target use `String(localized:)`.
+- Catalog keys are the natural English sentence, and the `en` value mirrors the key; `mise strip-xcstrings` enforces the mirroring. Do not use dot-namespaced identifier keys.
 - Every target that contains user-facing strings must keep them in a `Localizable.xcstrings` under its `Resources/` directory, currently `ModernUIKit/Resources/Localizable.xcstrings`.
 - When adding or modifying any localized key, update the corresponding `.xcstrings` file in the same change.
 - Each key should include complete localizations for the locales already used by the catalog. For the starter catalog, keep `en` and `zh-Hans` entries complete and preserve positional format specifiers such as `%1$@` or `%2$lld`.
 - Do not leave empty entries, untranslated keys, or orphaned keys in checked-in `.xcstrings` files.
-- Run `mise strip-xcstrings` before committing xcstrings edits and `mise validate-xcstrings` to gate release-oriented changes.
+- Run `mise strip-xcstrings` before committing xcstrings edits and `mise validate-xcstrings` to gate release-oriented changes. The validator cross-references each catalog against its owning target's Swift sources: keys with no `String(localized:)` or `NSLocalizedString` reference fail as orphaned, and referenced keys missing from the catalog fail as unregistered. Keys built from variables at runtime are invisible to this gate; register such a key with an explicit literal alongside the dynamic call site.
+- Required locales beyond those already in the catalog are project policy set in `mise.toml` via `--require-locale`; the starter requires `zh-Hans`.
 
 ## Code Style
 
@@ -185,7 +187,7 @@
 - Keep `.gitattributes` Linguist exclusions scoped to repository tooling and automation surfaces. Do not exclude app target source or Swift tests from language statistics.
 - Manually collected upstream license texts belong under `Resources/AdditionalLicenses/<PackageName>/LICENSE` or `COPYING`. The scanner prefers these files over bundled dependency licenses when both exist.
 - Format with `mise format` and check formatting with `mise format-lint`; submodules under `Vendor/` and build artifacts are excluded automatically.
-- Localization hygiene uses `mise strip-xcstrings` to drop stale keys and sync source-language values, and `mise validate-xcstrings` to check stale keys and missing translations across locales already used by the catalog.
+- Localization hygiene uses `mise strip-xcstrings` to drop stale keys and sync source-language values, and `mise validate-xcstrings` to check stale, orphaned, or unregistered keys and missing translations across catalog locales plus the locales required in `mise.toml`.
 - `scan.license.sh` skips optional LookInside debug-tool packages so local inspection checkouts do not pollute app license notices.
 - If a new workflow becomes standard for the template, add a matching mise task instead of relying on ad-hoc shell commands.
 - A shell exit code of `0` from `mise build*` or `mise test` is not proof of success. Always read the full log output and verify there are no compiler errors, no real compiler warnings, and for `mise test`, every test case reported as passed.

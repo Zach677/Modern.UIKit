@@ -1,9 +1,25 @@
 #!/usr/bin/env python3
-"""Validate Localizable.xcstrings files for release readiness."""
+"""Validate Localizable.xcstrings files for release readiness.
+
+Checks per catalog:
+  1. Entry hygiene: no stale entries, no empty values, source values mirror keys.
+  2. Locale coverage: every key covers the locales already used by the catalog
+     plus any locale passed via --require-locale.
+  3. Source cross-reference: every catalog key is referenced from the owning
+     target's Swift sources, and every `String(localized:)` /
+     `NSLocalizedString` key in those sources exists in the catalog.
+
+The owning target of `<Target>/Resources/Localizable.xcstrings` is `<Target>/`.
+Keys built from variables at runtime are invisible to the cross-reference; if
+one ever appears, register it with an explicit literal alongside the dynamic
+call site.
+"""
 
 from __future__ import annotations
 
+import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -19,12 +35,59 @@ EXCLUDE_DIR_NAMES = {
 
 DEFAULT_SOURCE_LANGUAGE = "en"
 
+LOCALIZED_KEY_RE = re.compile(
+    r'(?:String\(\s*localized:|NSLocalizedString\()\s*"((?:[^"\\]|\\.)*)"'
+)
+
+SWIFT_ESCAPES = {
+    "n": "\n",
+    "t": "\t",
+    "r": "\r",
+    "0": "\0",
+    '"': '"',
+    "'": "'",
+    "\\": "\\",
+}
+
 
 def iter_xcstrings(root: Path):
     for path in root.rglob("Localizable.xcstrings"):
         if any(part in EXCLUDE_DIR_NAMES for part in path.parts):
             continue
         yield path
+
+
+def unescape_swift_literal(literal: str) -> str:
+    result: list[str] = []
+    i = 0
+    while i < len(literal):
+        ch = literal[i]
+        if ch == "\\" and i + 1 < len(literal):
+            replacement = SWIFT_ESCAPES.get(literal[i + 1])
+            if replacement is not None:
+                result.append(replacement)
+                i += 2
+                continue
+        result.append(ch)
+        i += 1
+    return "".join(result)
+
+
+def target_scope(catalog_path: Path, root: Path) -> Path:
+    if catalog_path.parent.name == "Resources" and catalog_path.parent.parent != root:
+        return catalog_path.parent.parent
+    return root
+
+
+def referenced_keys(scope: Path) -> set[str]:
+    keys: set[str] = set()
+    for swift_file in scope.rglob("*.swift"):
+        if any(part in EXCLUDE_DIR_NAMES for part in swift_file.parts):
+            continue
+        text = swift_file.read_text(encoding="utf-8")
+        for match in LOCALIZED_KEY_RE.finditer(text):
+            keys.add(unescape_swift_literal(match.group(1)))
+    return keys
 
 
 def discover_locales(strings: dict) -> set[str]:
@@ -85,7 +148,7 @@ def validate_entry(
     return errors
 
 
-def validate_file(path: Path) -> list[str]:
+def validate_file(path: Path, root: Path, extra_locales: set[str]) -> list[str]:
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
@@ -98,16 +161,44 @@ def validate_file(path: Path) -> list[str]:
     source_lang = doc.get("sourceLanguage") or DEFAULT_SOURCE_LANGUAGE
     required_locales = discover_locales(strings)
     required_locales.add(source_lang)
+    required_locales.update(extra_locales)
 
     errors: list[str] = []
     for key, entry in strings.items():
         for err in validate_entry(key, entry, source_lang, required_locales):
             errors.append(f"{path}: {err}")
+
+    scope = target_scope(path, root)
+    source_keys = referenced_keys(scope)
+    catalog_keys = set(strings.keys())
+
+    for key in sorted(catalog_keys - source_keys):
+        errors.append(
+            f"{path}: {key!r}: orphaned key (no String(localized:) or "
+            f"NSLocalizedString reference under {scope})"
+        )
+    for key in sorted(source_keys - catalog_keys):
+        errors.append(
+            f"{path}: {key!r}: referenced under {scope} but missing from the catalog"
+        )
+
     return errors
 
 
 def main() -> int:
-    root = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path.cwd()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("root", nargs="?", default=".", help="repository root")
+    parser.add_argument(
+        "--require-locale",
+        action="append",
+        default=[],
+        metavar="LOCALE",
+        help="locale every key must cover, in addition to locales already "
+        "used by the catalog (repeatable)",
+    )
+    args = parser.parse_args()
+
+    root = Path(args.root).resolve()
     if not root.exists():
         print(f"[!] path does not exist: {root}", file=sys.stderr)
         return 1
@@ -117,9 +208,10 @@ def main() -> int:
         print(f"[!] no Localizable.xcstrings found under {root}")
         return 0
 
+    extra_locales = set(args.require_locale)
     all_errors: list[str] = []
     for path in files:
-        file_errors = validate_file(path)
+        file_errors = validate_file(path, root, extra_locales)
         if file_errors:
             all_errors.extend(file_errors)
             print(f"[fail] {path} ({len(file_errors)} issue(s))")

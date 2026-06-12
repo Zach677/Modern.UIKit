@@ -29,7 +29,7 @@ private extension RootViewController {
         subtitleLabel.textColor = .secondaryLabel
         subtitleLabel.textAlignment = .center
         subtitleLabel.numberOfLines = 0
-        subtitleLabel.text = "Programmatic UIKit starter is ready."
+        subtitleLabel.text = String(localized: "Programmatic UIKit starter is ready.")
 
         view.addSubview(subtitleLabel)
 

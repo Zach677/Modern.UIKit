@@ -1,12 +1,18 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "ModernUIKit.Root.Ready" : {
+    "Programmatic UIKit starter is ready." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ModernUIKit.Root.Ready"
+            "value" : "Programmatic UIKit starter is ready."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "纯代码 UIKit 起步模板已就绪。"
           }
         }
       }

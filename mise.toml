@@ -314,8 +314,8 @@ description = "Drop stale keys and mirror keys into en values"
 run = "python3 ./Resources/DevKit/scripts/strip_stale_xcstrings.py"
 
 [tasks.validate-xcstrings]
-description = "Fail on stale keys or missing translations"
-run = "python3 ./Resources/DevKit/scripts/validate_xcstrings.py"
+description = "Fail on stale, orphaned, or unregistered keys and missing translations"
+run = "python3 ./Resources/DevKit/scripts/validate_xcstrings.py --require-locale zh-Hans"
 
 [tasks.tidy-schemes]
 description = "Rewrite workspace scheme visibility/order for Xcode"
