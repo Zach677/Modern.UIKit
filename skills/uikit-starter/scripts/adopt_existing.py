@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 import subprocess
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -370,15 +371,8 @@ def analyze_repository(repo_root: Path) -> RepositoryProfile:
     )
 
 
-def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> AdoptionPlan:
-    if adoption_intent not in ADOPTION_INTENTS:
-        raise ValueError(f"Unsupported adoption intent: {adoption_intent}")
-
+def repo_setup_blockers(profile: RepositoryProfile) -> list[str]:
     blockers: list[str] = []
-    warnings: list[str] = []
-    questions: list[str] = []
-    proposed_changes: list[str] = []
-
     if not profile.is_git_repo:
         blockers.append("Initialize git or run adoption from an existing git checkout.")
     if profile.has_dirty_worktree:
@@ -391,166 +385,401 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         and not profile.has_swift_package
     ):
         blockers.append("No Xcode project or Tuist manifest was detected.")
-    if (
+    return blockers
+
+
+def is_swiftpm_nested_app_shape(profile: RepositoryProfile) -> bool:
+    return bool(
         profile.has_swift_package
+        and profile.nested_xcode_projects
         and not profile.xcode_projects
-        and not profile.nested_xcode_projects
-        and not profile.has_tuist
-    ):
-        questions.append(
-            "Is this SwiftPM package an app target, a library/tool package, or only a reference project?"
-        )
-        warnings.append("SwiftPM package-only adoption is plan-only in this first slice.")
-    if profile.xcode_workspaces and not profile.xcode_projects and not profile.has_tuist:
-        questions.append("Which project inside the workspace owns the app target?")
-        warnings.append(
-            "Workspace-only adoption is plan-only until the app project and dependency source of truth are explicit."
-        )
-    if not profile.xcode_projects and profile.nested_xcode_projects and not profile.has_tuist:
-        warnings.append(
-            "Only nested Xcode projects were detected; adoption must first choose the app project path."
-        )
-    if profile.xcode_projects and not profile.app_targets and not profile.has_tuist:
-        questions.append("Which app target should receive the UIKit starter baseline?")
-    if len(profile.xcode_projects) > 1:
-        questions.append("Which root .xcodeproj is the main app project?")
-    if len(profile.app_targets) > 1:
-        questions.append("Which app target should receive the UIKit starter baseline?")
-    if profile.has_cocoapods:
-        questions.append(
-            "Should CocoaPods and the existing workspace remain the dependency source of truth?"
-        )
-        warnings.append("CocoaPods workspace adoption is plan-only in this first slice.")
-    if profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
-        questions.append("Which nested app project should be treated as the iOS app surface?")
-        warnings.append("SwiftPM package-first adoption is plan-only until the app project is selected.")
-    if (
-        adoption_intent == "preserve-existing-workflow"
-        and profile.existing_command_surfaces
-        and not profile.has_makefile
-        and not profile.has_tuist
-        and not profile.has_cocoapods
-    ):
-        questions.append(
-            "This repo already has command surfaces; should Modern.UIKit checks be translated into them instead of adding new mise tasks?"
-        )
-        warnings.append(
-            f"Existing command surfaces detected: {', '.join(profile.existing_command_surfaces)}."
-        )
-    if profile.has_tuist:
-        if profile.has_tuist_source_guidance:
-            warnings.append("Repo guidance says Tuist should remain the source of truth.")
-        else:
-            questions.append(
-                "Should Tuist remain the source of truth, or should this repo migrate to the Xcode workspace baseline?"
-            )
-        warnings.append("Tuist adoption is plan-only in this first slice.")
-    if profile.has_swiftui_entry:
-        if profile.has_swiftui_first_guidance:
-            questions.append(
-                "This repo says SwiftUI first; confirm whether UIKit adoption is an architecture change or only a baseline comparison."
-            )
-            warnings.append("Repo guidance says not to introduce UIKit by default.")
-        else:
-            questions.append(
-                "Should the first migration keep the SwiftUI root behind a UIKit shell, or replace the app entry directly?"
-            )
-        warnings.append("SwiftUI entry migration is plan-only in this first slice.")
-    if adoption_intent == "full-template-conversion":
-        if profile.has_tuist or profile.has_swiftui_entry or profile.has_cocoapods:
-            questions.append(
-                "Full template conversion would replace core project architecture; confirm the exact source-of-truth changes before any code edits."
-            )
-            warnings.append("Full template conversion is plan-only unless the repo is already a simple UIKit/Xcode app.")
-    elif adoption_intent == "preserve-existing-workflow":
-        warnings.append(
-            "Preserve-existing-workflow intent forbids parallel build systems unless the user explicitly asks for them."
-        )
-    elif adoption_intent == "architecture-migration":
-        questions.append(
-            "Which architecture boundary should migrate first: lifecycle shell, folder structure, build workflow, or Agent contract?"
-        )
-        warnings.append("Architecture migration is plan-only until the first migration slice is selected.")
-
-    if profile.has_tuist:
-        proposed_changes.append(
-            "Keep Tuist manifests and existing repo-scoped commands as the source of truth by default."
-        )
-        if profile.has_mise_tasks:
-            proposed_changes.append(
-                "Map any adopted build/test ideas into existing mise tasks instead of adding a parallel command surface."
-            )
-        if not profile.has_modern_uikit_devkit:
-            proposed_changes.append(
-                "Port only compatible DevKit ideas into the Tuist/mise workflow after the migration decision is explicit."
-            )
-    elif profile.has_cocoapods:
-        proposed_changes.append(
-            "Preserve Podfile, existing workspace entrypoint, and dependency workflow by default."
-        )
-        proposed_changes.append(
-            "Map compatible DevKit checks into the existing workspace instead of regenerating dependency state."
-        )
-    elif profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
-        proposed_changes.append(
-            "Preserve the package-first layout and select the nested iOS app project before applying starter surfaces."
-        )
-    else:
-        if not profile.has_configuration_dir:
-            proposed_changes.append("Add the Modern.UIKit Configuration/*.xcconfig baseline.")
-        if not profile.has_modern_uikit_devkit:
-            missing = ", ".join(profile.devkit_missing_files)
-            proposed_changes.append(
-                f"Add missing Resources/DevKit/scripts for log-aware workflows: {missing}."
-            )
-        if not profile.has_mise_tasks:
-            proposed_changes.append(
-                "Add Modern.UIKit mise task automation for build, test, formatting, localization, schemes, and license workflows."
-            )
-        if not profile.has_test_plan:
-            proposed_changes.append("Add an app-level .xctestplan attached to the shared scheme.")
-
-    proposed_changes.extend(
-        [
-            "Refresh README.md and AGENTS.md with the adopted repo's actual workflow.",
-            "Preserve app source, resources, target names, signing identity, bundle identifiers, git history, and remotes by default.",
-        ]
     )
 
-    if (
-        adoption_intent == "full-template-conversion"
-        and profile.has_tuist
-        and profile.has_swiftui_entry
-    ):
-        mode = "tuist-full-conversion-plan"
-        scenario = "tuist-swiftui-full-uikit-conversion-requested"
-    elif profile.has_tuist:
-        mode = "tuist-migration-assisted"
-        if profile.has_swiftui_entry:
-            scenario = "tuist-swiftui-guided-decision"
-        else:
-            scenario = "tuist-source-preserving-baseline"
-    elif profile.has_cocoapods:
-        mode = "workspace-preserving-assisted"
-        scenario = "cocoapods-workspace-guided-decision"
-    elif profile.xcode_workspaces and not profile.xcode_projects:
-        mode = "workspace-preserving-assisted"
-        scenario = "workspace-only-guided-decision"
-    elif profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
-        mode = "swiftpm-app-assisted"
-        scenario = "swiftpm-nested-app-guided-decision"
-    elif profile.has_swift_package and not profile.xcode_projects:
-        mode = "swiftpm-package-assisted"
-        scenario = "swiftpm-package-guided-decision"
-    elif profile.has_swiftui_entry:
-        mode = "swiftui-migration-assisted"
-        scenario = "xcode-swiftui-entry-migration"
-    elif profile.xcode_projects:
-        mode = "xcode-adopt"
-        scenario = "xcode-uikit-baseline-adoption"
-    else:
-        mode = "unsupported"
-        scenario = "unsupported-repo-shape"
+
+def is_plain_xcode_shape(profile: RepositoryProfile) -> bool:
+    return (
+        not profile.has_tuist
+        and not profile.has_cocoapods
+        and not is_swiftpm_nested_app_shape(profile)
+    )
+
+
+# Planning advice is table-driven: one rule per repo condition, evaluated in
+# order. To support a new repo shape or intent, add rows here (and a scenario
+# row plus verification/next-action entries below) instead of growing branch
+# chains. Text entries may be callables taking the profile for dynamic values.
+
+
+@dataclass(frozen=True)
+class AdviceRule:
+    when: Callable[[RepositoryProfile, str], bool]
+    questions: tuple[str | Callable[[RepositoryProfile], str], ...] = ()
+    warnings: tuple[str | Callable[[RepositoryProfile], str], ...] = ()
+
+
+@dataclass(frozen=True)
+class ScenarioRule:
+    when: Callable[[RepositoryProfile, str], bool]
+    mode: str
+    scenario: str
+
+
+@dataclass(frozen=True)
+class ProposedChangeRule:
+    when: Callable[[RepositoryProfile], bool]
+    changes: tuple[str | Callable[[RepositoryProfile], str], ...] = ()
+
+
+ADVICE_RULES: tuple[AdviceRule, ...] = (
+    AdviceRule(
+        when=lambda p, intent: bool(
+            p.has_swift_package
+            and not p.xcode_projects
+            and not p.nested_xcode_projects
+            and not p.has_tuist
+        ),
+        questions=(
+            "Is this SwiftPM package an app target, a library/tool package, or only a reference project?",
+        ),
+        warnings=("SwiftPM package-only adoption is plan-only in this first slice.",),
+    ),
+    AdviceRule(
+        when=lambda p, intent: bool(
+            p.xcode_workspaces and not p.xcode_projects and not p.has_tuist
+        ),
+        questions=("Which project inside the workspace owns the app target?",),
+        warnings=(
+            "Workspace-only adoption is plan-only until the app project and dependency source of truth are explicit.",
+        ),
+    ),
+    AdviceRule(
+        when=lambda p, intent: bool(
+            not p.xcode_projects and p.nested_xcode_projects and not p.has_tuist
+        ),
+        warnings=(
+            "Only nested Xcode projects were detected; adoption must first choose the app project path.",
+        ),
+    ),
+    AdviceRule(
+        when=lambda p, intent: bool(
+            p.xcode_projects and not p.app_targets and not p.has_tuist
+        ),
+        questions=("Which app target should receive the UIKit starter baseline?",),
+    ),
+    AdviceRule(
+        when=lambda p, intent: len(p.xcode_projects) > 1,
+        questions=("Which root .xcodeproj is the main app project?",),
+    ),
+    AdviceRule(
+        when=lambda p, intent: len(p.app_targets) > 1,
+        questions=("Which app target should receive the UIKit starter baseline?",),
+    ),
+    AdviceRule(
+        when=lambda p, intent: p.has_cocoapods,
+        questions=(
+            "Should CocoaPods and the existing workspace remain the dependency source of truth?",
+        ),
+        warnings=("CocoaPods workspace adoption is plan-only in this first slice.",),
+    ),
+    AdviceRule(
+        when=lambda p, intent: is_swiftpm_nested_app_shape(p),
+        questions=("Which nested app project should be treated as the iOS app surface?",),
+        warnings=(
+            "SwiftPM package-first adoption is plan-only until the app project is selected.",
+        ),
+    ),
+    AdviceRule(
+        when=lambda p, intent: bool(
+            intent == "preserve-existing-workflow"
+            and p.existing_command_surfaces
+            and not p.has_makefile
+            and not p.has_tuist
+            and not p.has_cocoapods
+        ),
+        questions=(
+            "This repo already has command surfaces; should Modern.UIKit checks be translated into them instead of adding new mise tasks?",
+        ),
+        warnings=(
+            lambda p: f"Existing command surfaces detected: {', '.join(p.existing_command_surfaces)}.",
+        ),
+    ),
+    AdviceRule(
+        when=lambda p, intent: p.has_tuist and p.has_tuist_source_guidance,
+        warnings=("Repo guidance says Tuist should remain the source of truth.",),
+    ),
+    AdviceRule(
+        when=lambda p, intent: p.has_tuist and not p.has_tuist_source_guidance,
+        questions=(
+            "Should Tuist remain the source of truth, or should this repo migrate to the Xcode workspace baseline?",
+        ),
+    ),
+    AdviceRule(
+        when=lambda p, intent: p.has_tuist,
+        warnings=("Tuist adoption is plan-only in this first slice.",),
+    ),
+    AdviceRule(
+        when=lambda p, intent: p.has_swiftui_entry and p.has_swiftui_first_guidance,
+        questions=(
+            "This repo says SwiftUI first; confirm whether UIKit adoption is an architecture change or only a baseline comparison.",
+        ),
+        warnings=("Repo guidance says not to introduce UIKit by default.",),
+    ),
+    AdviceRule(
+        when=lambda p, intent: p.has_swiftui_entry and not p.has_swiftui_first_guidance,
+        questions=(
+            "Should the first migration keep the SwiftUI root behind a UIKit shell, or replace the app entry directly?",
+        ),
+    ),
+    AdviceRule(
+        when=lambda p, intent: p.has_swiftui_entry,
+        warnings=("SwiftUI entry migration is plan-only in this first slice.",),
+    ),
+    AdviceRule(
+        when=lambda p, intent: bool(
+            intent == "full-template-conversion"
+            and (p.has_tuist or p.has_swiftui_entry or p.has_cocoapods)
+        ),
+        questions=(
+            "Full template conversion would replace core project architecture; confirm the exact source-of-truth changes before any code edits.",
+        ),
+        warnings=(
+            "Full template conversion is plan-only unless the repo is already a simple UIKit/Xcode app.",
+        ),
+    ),
+    AdviceRule(
+        when=lambda p, intent: intent == "preserve-existing-workflow",
+        warnings=(
+            "Preserve-existing-workflow intent forbids parallel build systems unless the user explicitly asks for them.",
+        ),
+    ),
+    AdviceRule(
+        when=lambda p, intent: intent == "architecture-migration",
+        questions=(
+            "Which architecture boundary should migrate first: lifecycle shell, folder structure, build workflow, or Agent contract?",
+        ),
+        warnings=(
+            "Architecture migration is plan-only until the first migration slice is selected.",
+        ),
+    ),
+)
+
+SCENARIO_RULES: tuple[ScenarioRule, ...] = (
+    ScenarioRule(
+        when=lambda p, intent: bool(
+            intent == "full-template-conversion" and p.has_tuist and p.has_swiftui_entry
+        ),
+        mode="tuist-full-conversion-plan",
+        scenario="tuist-swiftui-full-uikit-conversion-requested",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: p.has_tuist and p.has_swiftui_entry,
+        mode="tuist-migration-assisted",
+        scenario="tuist-swiftui-guided-decision",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: p.has_tuist,
+        mode="tuist-migration-assisted",
+        scenario="tuist-source-preserving-baseline",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: p.has_cocoapods,
+        mode="workspace-preserving-assisted",
+        scenario="cocoapods-workspace-guided-decision",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: bool(p.xcode_workspaces and not p.xcode_projects),
+        mode="workspace-preserving-assisted",
+        scenario="workspace-only-guided-decision",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: is_swiftpm_nested_app_shape(p),
+        mode="swiftpm-app-assisted",
+        scenario="swiftpm-nested-app-guided-decision",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: bool(p.has_swift_package and not p.xcode_projects),
+        mode="swiftpm-package-assisted",
+        scenario="swiftpm-package-guided-decision",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: p.has_swiftui_entry,
+        mode="swiftui-migration-assisted",
+        scenario="xcode-swiftui-entry-migration",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: bool(p.xcode_projects),
+        mode="xcode-adopt",
+        scenario="xcode-uikit-baseline-adoption",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: True,
+        mode="unsupported",
+        scenario="unsupported-repo-shape",
+    ),
+)
+
+PROPOSED_CHANGE_RULES: tuple[ProposedChangeRule, ...] = (
+    ProposedChangeRule(
+        when=lambda p: p.has_tuist,
+        changes=(
+            "Keep Tuist manifests and existing repo-scoped commands as the source of truth by default.",
+        ),
+    ),
+    ProposedChangeRule(
+        when=lambda p: p.has_tuist and p.has_mise_tasks,
+        changes=(
+            "Map any adopted build/test ideas into existing mise tasks instead of adding a parallel command surface.",
+        ),
+    ),
+    ProposedChangeRule(
+        when=lambda p: p.has_tuist and not p.has_modern_uikit_devkit,
+        changes=(
+            "Port only compatible DevKit ideas into the Tuist/mise workflow after the migration decision is explicit.",
+        ),
+    ),
+    ProposedChangeRule(
+        when=lambda p: not p.has_tuist and p.has_cocoapods,
+        changes=(
+            "Preserve Podfile, existing workspace entrypoint, and dependency workflow by default.",
+            "Map compatible DevKit checks into the existing workspace instead of regenerating dependency state.",
+        ),
+    ),
+    ProposedChangeRule(
+        when=lambda p: not p.has_tuist
+        and not p.has_cocoapods
+        and is_swiftpm_nested_app_shape(p),
+        changes=(
+            "Preserve the package-first layout and select the nested iOS app project before applying starter surfaces.",
+        ),
+    ),
+    ProposedChangeRule(
+        when=lambda p: is_plain_xcode_shape(p) and not p.has_configuration_dir,
+        changes=("Add the Modern.UIKit Configuration/*.xcconfig baseline.",),
+    ),
+    ProposedChangeRule(
+        when=lambda p: is_plain_xcode_shape(p) and not p.has_modern_uikit_devkit,
+        changes=(
+            lambda p: (
+                "Add missing Resources/DevKit/scripts for log-aware workflows: "
+                f"{', '.join(p.devkit_missing_files)}."
+            ),
+        ),
+    ),
+    ProposedChangeRule(
+        when=lambda p: is_plain_xcode_shape(p) and not p.has_mise_tasks,
+        changes=(
+            "Add Modern.UIKit mise task automation for build, test, formatting, localization, schemes, and license workflows.",
+        ),
+    ),
+    ProposedChangeRule(
+        when=lambda p: is_plain_xcode_shape(p) and not p.has_test_plan,
+        changes=("Add an app-level .xctestplan attached to the shared scheme.",),
+    ),
+    ProposedChangeRule(
+        when=lambda p: True,
+        changes=(
+            "Refresh README.md and AGENTS.md with the adopted repo's actual workflow.",
+            "Preserve app source, resources, target names, signing identity, bundle identifiers, git history, and remotes by default.",
+        ),
+    ),
+)
+
+TUIST_VERIFICATION = (
+    "Review the generated migration-assisted plan before applying changes.",
+    "Use the repo's existing Tuist/mise commands for validation.",
+    "Do not add a parallel command surface or xctestplan unless the migration decision explicitly changes the source of truth.",
+)
+
+COCOAPODS_VERIFICATION = (
+    "Review the generated workspace-preserving plan before applying changes.",
+    "Use the existing workspace and dependency commands for validation.",
+    "Do not delete Podfile, Pods workspace state, or generated workspace settings in an automated adoption pass.",
+)
+
+WORKSPACE_ONLY_VERIFICATION = (
+    "Review the workspace-only plan before applying changes.",
+    "Inspect the workspace contents and identify the app project before adopting starter surfaces.",
+    "Do not assume workspace ownership from the repository root alone.",
+)
+
+SWIFTPM_NESTED_VERIFICATION = (
+    "Review the nested app selection before applying changes.",
+    "Use the existing SwiftPM and app-project commands for validation.",
+    "Do not assume the repository root is the app project root.",
+)
+
+SWIFTPM_PACKAGE_VERIFICATION = (
+    "Review the SwiftPM package-only plan before applying changes.",
+    "Use the package's existing SwiftPM or custom script workflow for validation.",
+    "Do not add Xcode workspace, mise automation, or UIKit starter files until app ownership is explicit.",
+)
+
+DEFAULT_VERIFICATION = (
+    "Review the generated adoption plan before applying changes.",
+    "Run mise build for baseline adoption.",
+    "Run mise test when test files, xctestplan, or shared build settings change.",
+)
+
+VERIFICATION_BY_SCENARIO: dict[str, tuple[str, ...]] = {
+    "tuist-swiftui-full-uikit-conversion-requested": TUIST_VERIFICATION,
+    "tuist-swiftui-guided-decision": TUIST_VERIFICATION,
+    "tuist-source-preserving-baseline": TUIST_VERIFICATION,
+    "cocoapods-workspace-guided-decision": COCOAPODS_VERIFICATION,
+    "workspace-only-guided-decision": WORKSPACE_ONLY_VERIFICATION,
+    "swiftpm-nested-app-guided-decision": SWIFTPM_NESTED_VERIFICATION,
+    "swiftpm-package-guided-decision": SWIFTPM_PACKAGE_VERIFICATION,
+}
+
+
+def resolve_text(
+    text: str | Callable[[RepositoryProfile], str], profile: RepositoryProfile
+) -> str:
+    return text(profile) if callable(text) else text
+
+
+def advice_for(
+    profile: RepositoryProfile, adoption_intent: str
+) -> tuple[list[str], list[str]]:
+    questions: list[str] = []
+    warnings: list[str] = []
+    for rule in ADVICE_RULES:
+        if not rule.when(profile, adoption_intent):
+            continue
+        questions.extend(resolve_text(text, profile) for text in rule.questions)
+        warnings.extend(resolve_text(text, profile) for text in rule.warnings)
+    return questions, warnings
+
+
+def proposed_changes_for(profile: RepositoryProfile) -> list[str]:
+    changes: list[str] = []
+    for rule in PROPOSED_CHANGE_RULES:
+        if rule.when(profile):
+            changes.extend(resolve_text(text, profile) for text in rule.changes)
+    return changes
+
+
+def mode_and_scenario_for(
+    profile: RepositoryProfile, adoption_intent: str
+) -> tuple[str, str]:
+    for rule in SCENARIO_RULES:
+        if rule.when(profile, adoption_intent):
+            return rule.mode, rule.scenario
+    raise AssertionError("SCENARIO_RULES must end with a catch-all rule")
+
+
+def verification_steps_for(scenario: str) -> list[str]:
+    return list(VERIFICATION_BY_SCENARIO.get(scenario, DEFAULT_VERIFICATION))
+
+
+def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> AdoptionPlan:
+    if adoption_intent not in ADOPTION_INTENTS:
+        raise ValueError(f"Unsupported adoption intent: {adoption_intent}")
+
+    blockers = repo_setup_blockers(profile)
+    questions, warnings = advice_for(profile, adoption_intent)
+
+    proposed_changes = proposed_changes_for(profile)
+    mode, scenario = mode_and_scenario_for(profile, adoption_intent)
 
     status = "blocked" if blockers else "needs-confirmation" if questions else "ready"
     summary = {
@@ -558,43 +787,7 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         "needs-confirmation": "Adoption can proceed after the agent resolves the listed decisions.",
         "ready": "Adoption can proceed with the conservative Xcode/UIKit baseline plan.",
     }[status]
-
-    if profile.has_tuist:
-        verification = [
-            "Review the generated migration-assisted plan before applying changes.",
-            "Use the repo's existing Tuist/mise commands for validation.",
-            "Do not add a parallel command surface or xctestplan unless the migration decision explicitly changes the source of truth.",
-        ]
-    elif profile.has_cocoapods:
-        verification = [
-            "Review the generated workspace-preserving plan before applying changes.",
-            "Use the existing workspace and dependency commands for validation.",
-            "Do not delete Podfile, Pods workspace state, or generated workspace settings in an automated adoption pass.",
-        ]
-    elif profile.xcode_workspaces and not profile.xcode_projects:
-        verification = [
-            "Review the workspace-only plan before applying changes.",
-            "Inspect the workspace contents and identify the app project before adopting starter surfaces.",
-            "Do not assume workspace ownership from the repository root alone.",
-        ]
-    elif profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
-        verification = [
-            "Review the nested app selection before applying changes.",
-            "Use the existing SwiftPM and app-project commands for validation.",
-            "Do not assume the repository root is the app project root.",
-        ]
-    elif profile.has_swift_package and not profile.xcode_projects:
-        verification = [
-            "Review the SwiftPM package-only plan before applying changes.",
-            "Use the package's existing SwiftPM or custom script workflow for validation.",
-            "Do not add Xcode workspace, mise automation, or UIKit starter files until app ownership is explicit.",
-        ]
-    else:
-        verification = [
-            "Review the generated adoption plan before applying changes.",
-            "Run mise build for baseline adoption.",
-            "Run mise test when test files, xctestplan, or shared build settings change.",
-        ]
+    verification = verification_steps_for(scenario)
 
     goal_supported_level = infer_goal_supported_level(
         profile,
@@ -713,6 +906,44 @@ def source_of_truth_for_profile(profile: RepositoryProfile) -> str:
     return "unknown"
 
 
+UNSUPPORTED_REASON_RULES: tuple[
+    tuple[Callable[[RepositoryProfile, str], bool], str], ...
+] = (
+    (
+        lambda p, mode: p.has_tuist and p.has_swiftui_entry,
+        "Full conversion from Tuist + SwiftUI needs dedicated source-of-truth and lifecycle migration tooling.",
+    ),
+    (
+        lambda p, mode: p.has_tuist,
+        "Full conversion from Tuist needs dedicated source-of-truth migration tooling.",
+    ),
+    (
+        lambda p, mode: bool(p.has_swift_package and not p.xcode_projects),
+        "SwiftPM package-only repositories need app ownership and platform intent before conversion.",
+    ),
+    (
+        lambda p, mode: p.has_swiftui_entry,
+        "Full conversion from SwiftUI entry needs dedicated lifecycle migration tooling.",
+    ),
+    (
+        lambda p, mode: p.has_cocoapods,
+        "Full conversion from CocoaPods workspace needs dedicated dependency workflow migration tooling.",
+    ),
+    (
+        lambda p, mode: bool(p.xcode_workspaces and not p.xcode_projects),
+        "Workspace-only repositories need app project discovery before conversion.",
+    ),
+    (
+        lambda p, mode: bool(p.xcode_projects and not p.app_targets),
+        "No clear app target was detected for conversion.",
+    ),
+    (
+        lambda p, mode: mode != "xcode-adopt",
+        "This repository shape is not an automated apply path.",
+    ),
+)
+
+
 def unsupported_reason_for_plan(
     goal_supported_level: str,
     profile: RepositoryProfile,
@@ -720,22 +951,9 @@ def unsupported_reason_for_plan(
 ) -> str | None:
     if goal_supported_level != "unsupported-without-new-migration-tooling":
         return None
-    if profile.has_tuist and profile.has_swiftui_entry:
-        return "Full conversion from Tuist + SwiftUI needs dedicated source-of-truth and lifecycle migration tooling."
-    if profile.has_tuist:
-        return "Full conversion from Tuist needs dedicated source-of-truth migration tooling."
-    if profile.has_swift_package and not profile.xcode_projects:
-        return "SwiftPM package-only repositories need app ownership and platform intent before conversion."
-    if profile.has_swiftui_entry:
-        return "Full conversion from SwiftUI entry needs dedicated lifecycle migration tooling."
-    if profile.has_cocoapods:
-        return "Full conversion from CocoaPods workspace needs dedicated dependency workflow migration tooling."
-    if profile.xcode_workspaces and not profile.xcode_projects:
-        return "Workspace-only repositories need app project discovery before conversion."
-    if profile.xcode_projects and not profile.app_targets:
-        return "No clear app target was detected for conversion."
-    if mode != "xcode-adopt":
-        return "This repository shape is not an automated apply path."
+    for when, reason in UNSUPPORTED_REASON_RULES:
+        if when(profile, mode):
+            return reason
     return "This goal is not supported by automated adoption yet."
 
 
@@ -786,33 +1004,120 @@ def preserve_or_replace_matrix(
     return matrix
 
 
-def forbidden_actions(profile: RepositoryProfile) -> list[str]:
-    actions = [
+FORBIDDEN_ACTION_RULES: tuple[
+    tuple[Callable[[RepositoryProfile], bool], str], ...
+] = (
+    (
+        lambda p: True,
         "Do not overwrite existing source, project, configuration, or documentation files during automated adoption.",
+    ),
+    (
+        lambda p: True,
         "Do not rewrite git history, remotes, bundle identifiers, or signing settings by default.",
+    ),
+    (
+        lambda p: True,
         "Do not treat --dry-run output as permission to edit files.",
-    ]
-    if profile.has_tuist:
-        actions.append(
-            "Do not replace Project.swift, Workspace.swift, or Tuist-generated source of truth without explicit approval."
-        )
-    if profile.has_mise_tasks:
-        actions.append(
-            "Do not add a parallel command surface that conflicts with existing mise tasks."
-        )
-    if profile.has_swiftui_entry:
-        actions.append(
-            "Do not replace the SwiftUI @main entry or root architecture until the user confirms a UIKit migration."
-        )
-    if profile.has_cocoapods:
-        actions.append(
-            "Do not delete Podfile or regenerate dependency workspace state in an automated adoption pass."
-        )
-    if profile.nested_xcode_projects and not profile.xcode_projects:
-        actions.append(
-            "Do not assume a nested Xcode project is the main app without selecting it first."
-        )
-    return actions
+    ),
+    (
+        lambda p: p.has_tuist,
+        "Do not replace Project.swift, Workspace.swift, or Tuist-generated source of truth without explicit approval.",
+    ),
+    (
+        lambda p: p.has_mise_tasks,
+        "Do not add a parallel command surface that conflicts with existing mise tasks.",
+    ),
+    (
+        lambda p: p.has_swiftui_entry,
+        "Do not replace the SwiftUI @main entry or root architecture until the user confirms a UIKit migration.",
+    ),
+    (
+        lambda p: p.has_cocoapods,
+        "Do not delete Podfile or regenerate dependency workspace state in an automated adoption pass.",
+    ),
+    (
+        lambda p: bool(p.nested_xcode_projects and not p.xcode_projects),
+        "Do not assume a nested Xcode project is the main app without selecting it first.",
+    ),
+)
+
+
+def forbidden_actions(profile: RepositoryProfile) -> list[str]:
+    return [action for when, action in FORBIDDEN_ACTION_RULES if when(profile)]
+
+
+BLOCKED_NEXT_ACTIONS = (
+    "Resolve blockers first; do not apply starter changes while repository state is unsafe.",
+    "Re-run the analyzer after the worktree and project shape are ready.",
+)
+
+UNSUPPORTED_GOAL_NEXT_ACTIONS = (
+    "Stop at this plan; this goal needs dedicated migration tooling before code changes.",
+    "Write a migration plan that names what will replace the existing source of truth and what remains preserved.",
+    "Run a comparison pass first if the user only needs reusable Modern.UIKit practices.",
+)
+
+XCODE_BASELINE_NEXT_ACTIONS = (
+    "If the user wants baseline adoption, run the analyzer with --apply.",
+    "If the user only wants a comparison, stop at the plan and summarize the missing baseline surfaces.",
+)
+
+XCODE_BASELINE_PRESERVE_NEXT_ACTIONS = (
+    "Keep existing commands and apply only missing additive baseline files that do not conflict.",
+    "Summarize any Modern.UIKit ideas that should be translated into current repo conventions.",
+)
+
+TUIST_SWIFTUI_GUIDED_NEXT_ACTIONS = (
+    "Ask whether the user wants baseline comparison, Tuist workflow hardening, or a real UIKit architecture migration.",
+    "Keep Tuist and existing repo-scoped commands as source of truth unless the user explicitly chooses migration away from them.",
+    "If the goal is UIKit migration, create a dedicated migration plan before code changes.",
+)
+
+UNSUPPORTED_MODE_NEXT_ACTIONS = (
+    "Use the analyzer output as a discovery report only.",
+    "Add support for this repo shape before attempting apply.",
+)
+
+DEFAULT_NEXT_ACTIONS = (
+    "Review the plan and choose the least disruptive path for the user's goal.",
+)
+
+NEXT_ACTIONS_BY_SCENARIO: dict[str, tuple[str, ...]] = {
+    "xcode-swiftui-entry-migration": (
+        "Clarify whether UIKit is the desired architecture direction or only a starter-baseline comparison.",
+        "If UIKit is the direction, plan the smallest shell migration before touching app entry code.",
+        "If comparison is enough, preserve SwiftUI entry and only document reusable baseline ideas.",
+    ),
+    "tuist-swiftui-full-uikit-conversion-requested": (
+        "Stop at planning; full conversion from Tuist + SwiftUI is not an automated apply path yet.",
+        "Decide whether Tuist, mise tasks, and SwiftUI entry are preserved, wrapped, or replaced.",
+        "Create a staged migration plan before any source, manifest, or command-surface edits.",
+    ),
+    "tuist-source-preserving-baseline": (
+        "Preserve Tuist manifests as source of truth by default.",
+        "Map compatible baseline ideas into existing Tuist or mise workflows instead of adding parallel Xcode command surfaces.",
+    ),
+    "cocoapods-workspace-guided-decision": (
+        "Preserve Podfile and the existing workspace while comparing reusable Modern.UIKit practices.",
+        "Do not apply baseline files until the main workspace, app target, and dependency workflow are confirmed.",
+        "If a full template conversion is requested, plan dependency migration separately before code edits.",
+    ),
+    "workspace-only-guided-decision": (
+        "Inspect the workspace contents before applying any starter files.",
+        "Identify the app project, app target, and dependency source of truth.",
+        "Use this as a discovery report until workspace ownership is explicit.",
+    ),
+    "swiftpm-nested-app-guided-decision": (
+        "Select the nested iOS app project before applying any starter surface.",
+        "Preserve SwiftPM package boundaries and app-specific commands by default.",
+        "Use the plan as a comparison report until app project ownership is explicit.",
+    ),
+    "swiftpm-package-guided-decision": (
+        "Treat this as a SwiftPM package analysis, not UIKit starter adoption.",
+        "Identify whether the package is an app, library, command-line tool, or macOS package before proposing changes.",
+        "Preserve Package.swift and existing scripts by default.",
+    ),
+}
 
 
 def recommended_next_actions(
@@ -825,97 +1130,34 @@ def recommended_next_actions(
     goal_supported_level: str,
 ) -> list[str]:
     if blockers:
-        return [
-            "Resolve blockers first; do not apply starter changes while repository state is unsafe.",
-            "Re-run the analyzer after the worktree and project shape are ready.",
-        ]
+        return list(BLOCKED_NEXT_ACTIONS)
 
     if goal_supported_level == "unsupported-without-new-migration-tooling":
-        return [
-            "Stop at this plan; this goal needs dedicated migration tooling before code changes.",
-            "Write a migration plan that names what will replace the existing source of truth and what remains preserved.",
-            "Run a comparison pass first if the user only needs reusable Modern.UIKit practices.",
-        ]
+        return list(UNSUPPORTED_GOAL_NEXT_ACTIONS)
 
     if scenario == "xcode-uikit-baseline-adoption":
-        actions = [
-            "If the user wants baseline adoption, run the analyzer with --apply.",
-            "If the user only wants a comparison, stop at the plan and summarize the missing baseline surfaces.",
-        ]
-        if adoption_intent == "preserve-existing-workflow":
-            actions = [
-                "Keep existing commands and apply only missing additive baseline files that do not conflict.",
-                "Summarize any Modern.UIKit ideas that should be translated into current repo conventions.",
-            ]
+        actions = list(
+            XCODE_BASELINE_PRESERVE_NEXT_ACTIONS
+            if adoption_intent == "preserve-existing-workflow"
+            else XCODE_BASELINE_NEXT_ACTIONS
+        )
         if questions:
             actions.insert(0, "Answer the recommended questions before applying changes.")
         return actions
 
-    if scenario == "xcode-swiftui-entry-migration":
-        return [
-            "Clarify whether UIKit is the desired architecture direction or only a starter-baseline comparison.",
-            "If UIKit is the direction, plan the smallest shell migration before touching app entry code.",
-            "If comparison is enough, preserve SwiftUI entry and only document reusable baseline ideas.",
-        ]
-
     if scenario == "tuist-swiftui-guided-decision":
-        actions = [
-            "Ask whether the user wants baseline comparison, Tuist workflow hardening, or a real UIKit architecture migration.",
-            "Keep Tuist and existing repo-scoped commands as source of truth unless the user explicitly chooses migration away from them.",
-            "If the goal is UIKit migration, create a dedicated migration plan before code changes.",
-        ]
+        actions = list(TUIST_SWIFTUI_GUIDED_NEXT_ACTIONS)
         if profile.has_swiftui_first_guidance:
             actions.insert(0, "Treat SwiftUI-first guidance as binding until the user explicitly overrides it.")
         return actions
 
-    if scenario == "tuist-swiftui-full-uikit-conversion-requested":
-        return [
-            "Stop at planning; full conversion from Tuist + SwiftUI is not an automated apply path yet.",
-            "Decide whether Tuist, mise tasks, and SwiftUI entry are preserved, wrapped, or replaced.",
-            "Create a staged migration plan before any source, manifest, or command-surface edits.",
-        ]
-
-    if scenario == "tuist-source-preserving-baseline":
-        return [
-            "Preserve Tuist manifests as source of truth by default.",
-            "Map compatible baseline ideas into existing Tuist or mise workflows instead of adding parallel Xcode command surfaces.",
-        ]
-
-    if scenario == "cocoapods-workspace-guided-decision":
-        return [
-            "Preserve Podfile and the existing workspace while comparing reusable Modern.UIKit practices.",
-            "Do not apply baseline files until the main workspace, app target, and dependency workflow are confirmed.",
-            "If a full template conversion is requested, plan dependency migration separately before code edits.",
-        ]
-
-    if scenario == "workspace-only-guided-decision":
-        return [
-            "Inspect the workspace contents before applying any starter files.",
-            "Identify the app project, app target, and dependency source of truth.",
-            "Use this as a discovery report until workspace ownership is explicit.",
-        ]
-
-    if scenario == "swiftpm-nested-app-guided-decision":
-        return [
-            "Select the nested iOS app project before applying any starter surface.",
-            "Preserve SwiftPM package boundaries and app-specific commands by default.",
-            "Use the plan as a comparison report until app project ownership is explicit.",
-        ]
-
-    if scenario == "swiftpm-package-guided-decision":
-        return [
-            "Treat this as a SwiftPM package analysis, not UIKit starter adoption.",
-            "Identify whether the package is an app, library, command-line tool, or macOS package before proposing changes.",
-            "Preserve Package.swift and existing scripts by default.",
-        ]
+    if scenario in NEXT_ACTIONS_BY_SCENARIO:
+        return list(NEXT_ACTIONS_BY_SCENARIO[scenario])
 
     if mode == "unsupported":
-        return [
-            "Use the analyzer output as a discovery report only.",
-            "Add support for this repo shape before attempting apply.",
-        ]
+        return list(UNSUPPORTED_MODE_NEXT_ACTIONS)
 
-    return ["Review the plan and choose the least disruptive path for the user's goal."]
+    return list(DEFAULT_NEXT_ACTIONS)
 
 
 def template_root_from_script() -> Path:
