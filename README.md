@@ -69,12 +69,12 @@ mise format-lint
 mise validate-xcstrings
 ```
 
-The mise tasks own the local workflow directly: Xcode invocation arguments,
-DerivedData isolation, module cache setup, and dirty-tree license flow are
-expressed in `mise.toml`. DevKit scripts stay narrow: they provide reusable
-log validation and maintenance helpers, not task orchestration. For release
-license refreshes that intentionally run on a dirty tree, pass the compatibility
-flag through mise:
+The mise tasks own the workflow surface: scheme, destination, and signing
+arguments live in `mise.toml`, and build/test tasks accept `KEY=value`
+overrides after `--`. The DevKit wrapper `run_xcodebuild.sh` owns log-aware
+xcodebuild execution, DerivedData placement, and build cache isolation.
+For release license refreshes that intentionally run on a dirty tree, pass
+the compatibility flag through mise:
 
 ```bash
 mise package-resolve -- dirty=1
@@ -82,14 +82,20 @@ mise package-resolve -- dirty=1
 
 ## Roadmap
 
-Current phase: **agent-native preview**.
+Current phase: **stable template, adoption tooling in preview**.
 
 - [x] Fresh UIKit app creation.
 - [x] Existing repo analysis with a guarded `can_apply` path.
 - [x] Planning mode for common SwiftUI, Tuist, CocoaPods, workspace-only, and SwiftPM repo shapes.
+- [x] CI with log-aware build/test, localization, and tooling test gates.
+- [ ] Strengthen app target detection beyond Info.plist paths ([#3](https://github.com/Zach677/Modern.UIKit/issues/3)).
 - [ ] Broaden real repo smoke coverage ([#1](https://github.com/Zach677/Modern.UIKit/issues/1)).
-- [ ] Improve adoption accuracy ([#2](https://github.com/Zach677/Modern.UIKit/issues/2), [#3](https://github.com/Zach677/Modern.UIKit/issues/3)).
-- [ ] Design migration tooling after analysis is reliable ([#4](https://github.com/Zach677/Modern.UIKit/issues/4)).
+- [ ] Improve source-of-truth detection for XcodeGen, Fastlane, and script entrypoints ([#2](https://github.com/Zach677/Modern.UIKit/issues/2)).
+
+Migration tooling ([#4](https://github.com/Zach677/Modern.UIKit/issues/4)) is
+intentionally not scheduled. It starts when a real repository needs the
+migration and read-only analysis has proven reliable, so the first supported
+slice is shaped by a real engagement instead of speculation.
 
 ## Contributing
 

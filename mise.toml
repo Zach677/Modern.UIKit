@@ -1,8 +1,12 @@
 # ModernUIKit task automation.
 #
 # mise is the public and implementation-level task runner for this repository.
-# Build and test tasks still route Xcode through the DevKit log-aware wrapper so
-# xcodebuild logs, not only process exit codes, remain the source of truth.
+# Build and test tasks route Xcode through the DevKit log-aware wrapper, which
+# also owns derived-data placement and build cache isolation, so xcodebuild
+# logs, not only process exit codes, remain the source of truth.
+#
+# Build/test tasks accept `KEY=value` overrides after `--`, for example
+# `mise build-sim -- CONFIGURATION=Release`.
 
 [task_config]
 dir = "{{config_root}}"
@@ -28,40 +32,15 @@ description = "Build the app for iOS Simulator"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-for arg in "$@"; do
-    case "$arg" in
-        *=*) export "$arg" ;;
-        *) echo "Unexpected argument: $arg" >&2; exit 64 ;;
-    esac
-done
-
-ROOT_DIR="{{config_root}}"
-WORKSPACE="${WORKSPACE:-${ROOT_DIR}/ModernUIKit.xcworkspace}"
-PROJECT="${PROJECT:-${ROOT_DIR}/ModernUIKit.xcodeproj}"
-IOS_SCHEME="${IOS_SCHEME:-ModernUIKit}"
-CONFIGURATION="${CONFIGURATION:-Debug}"
-DERIVED_DATA="${DERIVED_DATA:-${ROOT_DIR}/.DerivedData}"
-BUILD_HOME="${BUILD_HOME:-${DERIVED_DATA}/home}"
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-${DERIVED_DATA}/xdg-cache}"
-MODULE_CACHE="${MODULE_CACHE:-${DERIVED_DATA}/ModuleCache.noindex}"
-SIMULATOR_DESTINATION="${SIMULATOR_DESTINATION:-generic/platform=iOS Simulator}"
-
-mkdir -p "$BUILD_HOME" "$XDG_CACHE_HOME" "$MODULE_CACHE"
-HOME="$BUILD_HOME" \
-XDG_CACHE_HOME="$XDG_CACHE_HOME" \
-CLANG_MODULE_CACHE_PATH="$MODULE_CACHE" \
-SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
-XCBUILD_LABEL=build-sim \
-./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace "$WORKSPACE" \
-    -project "$PROJECT" \
-    -configuration "$CONFIGURATION" \
-    -derivedDataPath "$DERIVED_DATA" \
+for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
+XCBUILD_LABEL=build-sim ./Resources/DevKit/scripts/run_xcodebuild.sh \
+    -workspace "${WORKSPACE:-ModernUIKit.xcworkspace}" \
+    -scheme "${IOS_SCHEME:-ModernUIKit}" \
+    -configuration "${CONFIGURATION:-Debug}" \
+    -destination "${SIMULATOR_DESTINATION:-generic/platform=iOS Simulator}" \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGNING_REQUIRED=NO \
     CODE_SIGN_IDENTITY="" \
-    -scheme "$IOS_SCHEME" \
-    -destination "$SIMULATOR_DESTINATION" \
     build
 '''
 
@@ -70,40 +49,15 @@ description = "Build the app for a generic iOS device"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-for arg in "$@"; do
-    case "$arg" in
-        *=*) export "$arg" ;;
-        *) echo "Unexpected argument: $arg" >&2; exit 64 ;;
-    esac
-done
-
-ROOT_DIR="{{config_root}}"
-WORKSPACE="${WORKSPACE:-${ROOT_DIR}/ModernUIKit.xcworkspace}"
-PROJECT="${PROJECT:-${ROOT_DIR}/ModernUIKit.xcodeproj}"
-IOS_SCHEME="${IOS_SCHEME:-ModernUIKit}"
-CONFIGURATION="${CONFIGURATION:-Debug}"
-DERIVED_DATA="${DERIVED_DATA:-${ROOT_DIR}/.DerivedData}"
-BUILD_HOME="${BUILD_HOME:-${DERIVED_DATA}/home}"
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-${DERIVED_DATA}/xdg-cache}"
-MODULE_CACHE="${MODULE_CACHE:-${DERIVED_DATA}/ModuleCache.noindex}"
-DEVICE_DESTINATION="${DEVICE_DESTINATION:-generic/platform=iOS}"
-
-mkdir -p "$BUILD_HOME" "$XDG_CACHE_HOME" "$MODULE_CACHE"
-HOME="$BUILD_HOME" \
-XDG_CACHE_HOME="$XDG_CACHE_HOME" \
-CLANG_MODULE_CACHE_PATH="$MODULE_CACHE" \
-SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
-XCBUILD_LABEL=build-device \
-./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace "$WORKSPACE" \
-    -project "$PROJECT" \
-    -configuration "$CONFIGURATION" \
-    -derivedDataPath "$DERIVED_DATA" \
+for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
+XCBUILD_LABEL=build-device ./Resources/DevKit/scripts/run_xcodebuild.sh \
+    -workspace "${WORKSPACE:-ModernUIKit.xcworkspace}" \
+    -scheme "${IOS_SCHEME:-ModernUIKit}" \
+    -configuration "${CONFIGURATION:-Debug}" \
+    -destination "${DEVICE_DESTINATION:-generic/platform=iOS}" \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGNING_REQUIRED=NO \
     CODE_SIGN_IDENTITY="" \
-    -scheme "$IOS_SCHEME" \
-    -destination "$DEVICE_DESTINATION" \
     build
 '''
 
@@ -112,40 +66,15 @@ description = "Build the app for Mac Catalyst"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-for arg in "$@"; do
-    case "$arg" in
-        *=*) export "$arg" ;;
-        *) echo "Unexpected argument: $arg" >&2; exit 64 ;;
-    esac
-done
-
-ROOT_DIR="{{config_root}}"
-WORKSPACE="${WORKSPACE:-${ROOT_DIR}/ModernUIKit.xcworkspace}"
-PROJECT="${PROJECT:-${ROOT_DIR}/ModernUIKit.xcodeproj}"
-IOS_SCHEME="${IOS_SCHEME:-ModernUIKit}"
-CONFIGURATION="${CONFIGURATION:-Debug}"
-DERIVED_DATA="${DERIVED_DATA:-${ROOT_DIR}/.DerivedData}"
-BUILD_HOME="${BUILD_HOME:-${DERIVED_DATA}/home}"
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-${DERIVED_DATA}/xdg-cache}"
-MODULE_CACHE="${MODULE_CACHE:-${DERIVED_DATA}/ModuleCache.noindex}"
-CATALYST_DESTINATION="${CATALYST_DESTINATION:-generic/platform=macOS,variant=Mac Catalyst}"
-
-mkdir -p "$BUILD_HOME" "$XDG_CACHE_HOME" "$MODULE_CACHE"
-HOME="$BUILD_HOME" \
-XDG_CACHE_HOME="$XDG_CACHE_HOME" \
-CLANG_MODULE_CACHE_PATH="$MODULE_CACHE" \
-SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
-XCBUILD_LABEL=build-catalyst \
-./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace "$WORKSPACE" \
-    -project "$PROJECT" \
-    -configuration "$CONFIGURATION" \
-    -derivedDataPath "$DERIVED_DATA" \
+for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
+XCBUILD_LABEL=build-catalyst ./Resources/DevKit/scripts/run_xcodebuild.sh \
+    -workspace "${WORKSPACE:-ModernUIKit.xcworkspace}" \
+    -scheme "${IOS_SCHEME:-ModernUIKit}" \
+    -configuration "${CONFIGURATION:-Debug}" \
+    -destination "${CATALYST_DESTINATION:-generic/platform=macOS,variant=Mac Catalyst}" \
     CODE_SIGNING_ALLOWED=NO \
     CODE_SIGNING_REQUIRED=NO \
     CODE_SIGN_IDENTITY="" \
-    -scheme "$IOS_SCHEME" \
-    -destination "$CATALYST_DESTINATION" \
     SUPPORTS_MACCATALYST=YES \
     build
 '''
@@ -155,43 +84,14 @@ description = "Build, install, and launch on the booted iOS Simulator"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-for arg in "$@"; do
-    case "$arg" in
-        *=*) export "$arg" ;;
-        *) echo "Unexpected argument: $arg" >&2; exit 64 ;;
-    esac
-done
+for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
+mise run build-sim "$@"
 
-ROOT_DIR="{{config_root}}"
-WORKSPACE="${WORKSPACE:-${ROOT_DIR}/ModernUIKit.xcworkspace}"
-PROJECT="${PROJECT:-${ROOT_DIR}/ModernUIKit.xcodeproj}"
-IOS_SCHEME="${IOS_SCHEME:-ModernUIKit}"
+DERIVED_DATA="${DERIVED_DATA:-$PWD/.DerivedData}"
 CONFIGURATION="${CONFIGURATION:-Debug}"
-DERIVED_DATA="${DERIVED_DATA:-${ROOT_DIR}/.DerivedData}"
-BUILD_HOME="${BUILD_HOME:-${DERIVED_DATA}/home}"
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-${DERIVED_DATA}/xdg-cache}"
-MODULE_CACHE="${MODULE_CACHE:-${DERIVED_DATA}/ModuleCache.noindex}"
-SIMULATOR_DESTINATION="${SIMULATOR_DESTINATION:-generic/platform=iOS Simulator}"
+IOS_SCHEME="${IOS_SCHEME:-ModernUIKit}"
 SIMULATOR_DEVICE="${SIMULATOR_DEVICE:-booted}"
 SIMULATOR_APP="${SIMULATOR_APP:-${DERIVED_DATA}/Build/Products/${CONFIGURATION}-iphonesimulator/${IOS_SCHEME}.app}"
-
-mkdir -p "$BUILD_HOME" "$XDG_CACHE_HOME" "$MODULE_CACHE"
-HOME="$BUILD_HOME" \
-XDG_CACHE_HOME="$XDG_CACHE_HOME" \
-CLANG_MODULE_CACHE_PATH="$MODULE_CACHE" \
-SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
-XCBUILD_LABEL=build-sim \
-./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace "$WORKSPACE" \
-    -project "$PROJECT" \
-    -configuration "$CONFIGURATION" \
-    -derivedDataPath "$DERIVED_DATA" \
-    CODE_SIGNING_ALLOWED=NO \
-    CODE_SIGNING_REQUIRED=NO \
-    CODE_SIGN_IDENTITY="" \
-    -scheme "$IOS_SCHEME" \
-    -destination "$SIMULATOR_DESTINATION" \
-    build
 
 test -d "$SIMULATOR_APP"
 xcrun simctl bootstatus "$SIMULATOR_DEVICE" -b
@@ -210,47 +110,28 @@ run = [{ task = "test-unit" }]
 
 [tasks.test-unit]
 description = "Run the full test suite on Mac Catalyst"
+# Ad-hoc signing (CODE_SIGN_IDENTITY=-) instead of disabled signing: macOS
+# execution policy SIGKILLs a fully unsigned Catalyst test host on its first
+# launch after a clean build, which breaks `mise clean && mise test` and CI.
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-for arg in "$@"; do
-    case "$arg" in
-        *=*) export "$arg" ;;
-        *) echo "Unexpected argument: $arg" >&2; exit 64 ;;
-    esac
-done
-
-ROOT_DIR="{{config_root}}"
-WORKSPACE="${WORKSPACE:-${ROOT_DIR}/ModernUIKit.xcworkspace}"
-PROJECT="${PROJECT:-${ROOT_DIR}/ModernUIKit.xcodeproj}"
-IOS_SCHEME="${IOS_SCHEME:-ModernUIKit}"
-CONFIGURATION="${CONFIGURATION:-Debug}"
-DERIVED_DATA="${DERIVED_DATA:-${ROOT_DIR}/.DerivedData}"
-BUILD_HOME="${BUILD_HOME:-${DERIVED_DATA}/home}"
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-${DERIVED_DATA}/xdg-cache}"
-MODULE_CACHE="${MODULE_CACHE:-${DERIVED_DATA}/ModuleCache.noindex}"
-HOST_ARCH="$(uname -m)"
-CATALYST_TEST_DESTINATION="${CATALYST_TEST_DESTINATION:-platform=macOS,variant=Mac Catalyst,arch=${HOST_ARCH}}"
-
-mkdir -p "$BUILD_HOME" "$XDG_CACHE_HOME" "$MODULE_CACHE"
-HOME="$BUILD_HOME" \
-XDG_CACHE_HOME="$XDG_CACHE_HOME" \
-CLANG_MODULE_CACHE_PATH="$MODULE_CACHE" \
-SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE" \
-XCBUILD_LABEL=test-unit \
-./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace "$WORKSPACE" \
-    -project "$PROJECT" \
-    -configuration "$CONFIGURATION" \
-    -derivedDataPath "$DERIVED_DATA" \
-    CODE_SIGNING_ALLOWED=NO \
+for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
+XCBUILD_LABEL=test-unit ./Resources/DevKit/scripts/run_xcodebuild.sh \
+    -workspace "${WORKSPACE:-ModernUIKit.xcworkspace}" \
+    -scheme "${IOS_SCHEME:-ModernUIKit}" \
+    -configuration "${CONFIGURATION:-Debug}" \
+    -destination "${CATALYST_TEST_DESTINATION:-platform=macOS,variant=Mac Catalyst,arch=$(uname -m)}" \
+    CODE_SIGNING_ALLOWED=YES \
     CODE_SIGNING_REQUIRED=NO \
-    CODE_SIGN_IDENTITY="" \
-    -scheme "$IOS_SCHEME" \
-    -destination "$CATALYST_TEST_DESTINATION" \
+    CODE_SIGN_IDENTITY="-" \
     SUPPORTS_MACCATALYST=YES \
     test
 '''
+
+[tasks.test-tooling]
+description = "Run the uikit-starter Python unit tests"
+run = "python3 -m unittest discover -s skills/uikit-starter/tests"
 
 [tasks.package-resolve]
 description = "Resolve SwiftPM packages and refresh OpenSourceLicenses.md"

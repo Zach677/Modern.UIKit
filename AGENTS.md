@@ -21,7 +21,7 @@
 - `.gitattributes` keeps GitHub Linguist language statistics focused on Swift app source by excluding repository automation, DevKit scripts, and agent skill tooling.
 - `README.md` explains the template contract and local override flow.
 - `CONTRIBUTING.md`, `AI_POLICY.md`, and `HACKING.md` define the public contribution process, AI usage policy, and developer guide entrypoint.
-- `.github/` contains discussion-first community templates and the vouch automation workflows for contributor trust management.
+- `.github/` contains discussion-first community templates, the vouch automation workflows for contributor trust management, and the CI workflow that builds the app and runs the test gates on every push and pull request.
 - `.agents/` contains optional agent-facing commands and skills that mirror project workflow preferences for compatible agent runtimes.
 - `ModernUIKitTests/` contains the hosted unit tests for the app target.
 - `skills/uikit-starter/scripts/adopt_existing.py` is the read-only inspection and planning entry point for adopting this starter into an existing iOS repository.
@@ -168,6 +168,7 @@
   - `mise run-sim`
   - `mise test`
   - `mise test-unit`
+  - `mise test-tooling`
   - `mise package-resolve`
   - `mise scan-license`
   - `mise format`
@@ -180,6 +181,7 @@
 - `mise build` should cover the primary development paths, currently iOS Simulator and Mac Catalyst.
 - `mise run-ios` / `mise run-sim` should build the simulator app, install it on the booted simulator, and launch it without replacing the normal build/test gates.
 - `mise test` / `mise test-unit` should run on the Mac Catalyst destination by default.
+- `mise test-tooling` runs the `skills/uikit-starter` Python unit tests; run it whenever those scripts change.
 - `mise build-ios` only compiles the app target. To verify test file changes, use `mise test`.
 - `Resources/DevKit/scripts/run_xcodebuild.sh` is the expected execution path for build and test commands because it validates the log output, not just the shell exit code.
 - `scan.license.sh`, `strip_stale_xcstrings.py`, `validate_xcstrings.py`, and `tidy_workspace_schemes.py` are part of the repository contract, not optional side scripts.
@@ -233,7 +235,7 @@ lookinside --help
 
 ## DevKit Rules
 
-- `run_xcodebuild.sh` owns log-aware Xcode execution and should remain the shared wrapper behind mise build/test targets.
+- `run_xcodebuild.sh` owns log-aware Xcode execution, derived-data placement, and build cache isolation, and should remain the shared wrapper behind mise build/test targets.
 - `scan.license.sh` owns SwiftPM package resolution and `OpenSourceLicenses.md` refresh. If its behavior changes, keep the mise task contract stable.
 - `strip_stale_xcstrings.py` and `validate_xcstrings.py` own string-catalog hygiene for the repository.
 - `tidy_workspace_schemes.py` owns the workspace scheme visibility/order experience inside Xcode.

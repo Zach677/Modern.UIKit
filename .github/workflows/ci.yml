@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tooling:
+    name: Tooling tests and xcstrings gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Run uikit-starter Python unit tests
+        run: mise run test-tooling
+      - name: Validate string catalogs
+        run: mise run validate-xcstrings
+
+  app:
+    name: Build and test app
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Build iOS Simulator and Mac Catalyst
+        run: mise run build
+      - name: Run unit tests on Mac Catalyst
+        run: mise run test

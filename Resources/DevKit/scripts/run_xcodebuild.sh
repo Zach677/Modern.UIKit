@@ -8,15 +8,18 @@
 # past real failures.
 #
 # Behavior:
-#   1. Run `xcodebuild "$@"` directly and capture the raw log.
-#   2. Normalize the captured transcript into a plain-text log.
-#   3. Replay the normalized log through xcbeautify when available.
-#   4. Scan the log for error markers. If any are found, or the xcodebuild
+#   1. Isolate build caches under DERIVED_DATA so repeated runs stay hermetic.
+#   2. Run `xcodebuild "$@"` and capture the raw log.
+#   3. Normalize the captured transcript into a plain-text log.
+#   4. Replay the normalized log through xcbeautify when available.
+#   5. Scan the log for error markers. If any are found, or the xcodebuild
 #      invocation itself exited non-zero, exit with a non-zero status so the
 #      task runner halts the chain.
 #
 # Env:
 #   XCBUILD_LABEL  Optional label (e.g. "build-sim") used in failure messages.
+#   DERIVED_DATA   Derived data root (default: $PWD/.DerivedData). Passed to
+#                  xcodebuild as -derivedDataPath unless the caller provides one.
 
 set -u -o pipefail
 
@@ -25,47 +28,28 @@ RAW_LOG=$(mktemp -t "modern-uikit-${LABEL//\//_}.raw.XXXXXX.log")
 LOG=$(mktemp -t "modern-uikit-${LABEL//\//_}.XXXXXX.log")
 trap 'rm -f "$RAW_LOG" "$LOG"' EXIT
 
+DERIVED_DATA="${DERIVED_DATA:-$PWD/.DerivedData}"
+BUILD_HOME="${BUILD_HOME:-$DERIVED_DATA/home}"
+MODULE_CACHE="${MODULE_CACHE:-$DERIVED_DATA/ModuleCache.noindex}"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-$DERIVED_DATA/xdg-cache}"
+
+mkdir -p "$BUILD_HOME" "$XDG_CACHE_HOME" "$MODULE_CACHE"
+export HOME="$BUILD_HOME"
+export XDG_CACHE_HOME
+export CLANG_MODULE_CACHE_PATH="$MODULE_CACHE"
+export SWIFTPM_MODULECACHE_OVERRIDE="$MODULE_CACHE"
+
 ARGS=("$@")
-WORKSPACE_PATH=""
-PROJECT_PATH=""
-
-select_xcode_container() {
-    local filtered=()
-    local i=0
-
-    while [ $i -lt ${#ARGS[@]} ]; do
-        case "${ARGS[$i]}" in
-            -workspace)
-                if [ $((i + 1)) -lt ${#ARGS[@]} ]; then
-                    WORKSPACE_PATH="${ARGS[$((i + 1))]}"
-                fi
-                i=$((i + 2))
-                ;;
-            -project)
-                if [ $((i + 1)) -lt ${#ARGS[@]} ]; then
-                    PROJECT_PATH="${ARGS[$((i + 1))]}"
-                fi
-                i=$((i + 2))
-                ;;
-            *)
-                filtered+=("${ARGS[$i]}")
-                i=$((i + 1))
-                ;;
-        esac
-    done
-
-    if [ -n "$WORKSPACE_PATH" ] && [ -d "$WORKSPACE_PATH" ] && [ -f "$WORKSPACE_PATH/contents.xcworkspacedata" ]; then
-        ARGS=(-workspace "$WORKSPACE_PATH" "${filtered[@]}")
-        return
+HAS_DERIVED_DATA_ARG=0
+for arg in "${ARGS[@]}"; do
+    if [ "$arg" = "-derivedDataPath" ]; then
+        HAS_DERIVED_DATA_ARG=1
+        break
     fi
-
-    if [ -n "$PROJECT_PATH" ]; then
-        ARGS=(-project "$PROJECT_PATH" "${filtered[@]}")
-        return
-    fi
-
-    ARGS=("${filtered[@]}")
-}
+done
+if [ "$HAS_DERIVED_DATA_ARG" -eq 0 ]; then
+    ARGS=(-derivedDataPath "$DERIVED_DATA" "${ARGS[@]}")
+fi
 
 capture_direct() {
     : >"$RAW_LOG"
@@ -85,7 +69,6 @@ normalize_log() {
     ' "$RAW_LOG" >"$LOG"
 }
 
-select_xcode_container
 capture_direct "${ARGS[@]}"
 normalize_log
 
