@@ -3,7 +3,6 @@ import UIKit
 @objc(SceneDelegate)
 final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
-    private var preferences: AppPreferences?
 
     func scene(
         _ scene: UIScene,
@@ -19,7 +18,6 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.tintColor = .systemBlue
         window.rootViewController = navigationController
 
-        self.preferences = preferences
         self.window = window
         window.makeKeyAndVisible()
     }

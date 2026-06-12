@@ -53,7 +53,7 @@
 ### Test Layer
 
 - `ModernUIKitTests/` contains the app-level hosted tests for the main target.
-- Organize tests by feature or subdomain under `ModernUIKitTests/`, for example `Application/`, future `Library/`, `Playback/`, or `Settings/`.
+- Organize tests by feature or subdomain under `ModernUIKitTests/`, for example `Application/` today and one folder per future feature area.
 - Shared testing helpers should live in `ModernUIKitTests/TestSupport.swift` or `ModernUIKitTests/TestSupport/` once the helper surface justifies it.
 
 ## Placement Guide
@@ -68,6 +68,9 @@
 - New maintenance scripts belong under `Resources/DevKit/scripts/` and should be exposed through `mise.toml` if they become part of the normal workflow.
 - New manual license texts belong under `Resources/AdditionalLicenses/<PackageName>/LICENSE` or `COPYING`.
 - New tests should mirror the app’s folder boundaries where practical, so the test tree stays readable as the app grows.
+- `SceneDelegate` owns only `window` today. When a second scene-lifecycle callback needs app state, store the bootstrapped instance as `private var preferences: AppPreferences?` assigned in `scene(_:willConnectTo:options:)`. Do not bootstrap `AppPreferences` a second time and do not introduce a singleton to reach it.
+- Adopt reference-project patterns as rules in this file, not as pre-created types; a new type must ship with at least one production consumer in the same change.
+- When a feature area accumulates its second nontrivial convention, capture it as a rules section in this file in the same change.
 
 ## Dependency Rules
 
@@ -112,7 +115,7 @@
 
 - Keep `Configuration/Base.xcconfig` narrow and benchmark-aligned: it should include `Version.xcconfig` and own signing/provisioning plus the app bundle identifier.
 - Keep the template itself team-neutral by leaving `DEVELOPMENT_TEAM` empty in `Configuration/Base.xcconfig`.
-- For generated personal or single-team app projects, prefer committing the shared Apple Developer Team ID in the generated app's `Configuration/Base.xcconfig`, matching MuseAmp-style signing, so Xcode's Signing & Capabilities view resolves the Team from build settings.
+- For generated personal or single-team app projects, prefer committing the shared Apple Developer Team ID in the generated app's `Configuration/Base.xcconfig`, so Xcode's Signing & Capabilities view resolves the Team from build settings.
 - For generated reusable templates, forks, or projects that intentionally avoid a shared signing identity, keep `DEVELOPMENT_TEAM` empty in committed files and use the untracked developer override files below.
 - Keep version values in `Configuration/Version.xcconfig`.
 - Keep target/platform settings that Xcode already owns, such as `PRODUCT_NAME`, `SWIFT_VERSION`, deployment targets, supported platforms, and Info.plist wiring, in `project.pbxproj`.
@@ -219,7 +222,7 @@ lookinside --help
 - The project has a Mac Catalyst destination. Tests can be built and run on Catalyst in addition to iOS simulators.
 - `ModernUIKit.xctestplan` is part of the template contract; keep the shared scheme attached to it so Xcode's Tests UI stays useful from day one.
 - Prefer Swift Testing for new starter tests unless a concrete XCTest-only need exists.
-- Organize tests by feature or subdomain (`Application/`, future `Library/`, `Playback/`, etc.) instead of letting test files pile up at the target root.
+- Organize tests by feature or subdomain (`Application/` today, one folder per future feature area) instead of letting test files pile up at the target root.
 - New tests should cover app behavior and dependency wiring before drifting into brittle presentation assertions.
 - Prefer stable Catalyst-oriented `test-unit` execution over simulator-only convenience paths for the default automated test workflow.
 - Keep tests lightweight enough that the template still feels like a starter rather than a framework.

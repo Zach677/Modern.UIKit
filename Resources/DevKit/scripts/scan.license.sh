@@ -74,8 +74,10 @@ declare -A MANUAL_LICENSE_OVERRIDES
 declare -A PACKAGE_NAME_MAP
 PACKAGE_RESOLVED="${PROJECT_ROOT}/ModernUIKit.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 
-# Manual corrections for packages where GitHub URL does not match desired display name
-declare -A MANUAL_CORRECTIONS=()
+# When a package's GitHub repo name does not match its desired display name,
+# add a map here and prefer it over $repo_name in the loop below, for example:
+#   declare -A MANUAL_CORRECTIONS=([swift-collections]="Swift Collections")
+# Keys are lowercase SwiftPM package identities from Package.resolved.
 
 if [[ -f "$PACKAGE_RESOLVED" ]]; then
     echo "[*] reading package names from Package.resolved..."
@@ -84,9 +86,7 @@ if [[ -f "$PACKAGE_RESOLVED" ]]; then
             continue
         fi
 
-        if [[ -n "${MANUAL_CORRECTIONS[$identity]}" ]]; then
-            PACKAGE_NAME_MAP[$identity]="${MANUAL_CORRECTIONS[$identity]}"
-        elif [[ -n "$repo_name" ]]; then
+        if [[ -n "$repo_name" ]]; then
             PACKAGE_NAME_MAP[$identity]="$repo_name"
         fi
     done < <(python3 - "$PACKAGE_RESOLVED" <<'PY'
