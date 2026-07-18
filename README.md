@@ -91,11 +91,17 @@ Current phase: **stable template, adoption tooling in preview**.
 - [x] Strengthen app target detection beyond Info.plist paths ([#3](https://github.com/Zach677/Modern.UIKit/issues/3)).
 - [x] Broaden real repo smoke coverage ([#1](https://github.com/Zach677/Modern.UIKit/issues/1)).
 - [x] Improve source-of-truth detection for XcodeGen, Fastlane, and script entrypoints ([#2](https://github.com/Zach677/Modern.UIKit/issues/2)).
+- [x] Define guarded UIKit/Xcode additive baseline completion as the first migration slice ([#4](https://github.com/Zach677/Modern.UIKit/issues/4)).
 
-Migration tooling ([#4](https://github.com/Zach677/Modern.UIKit/issues/4)) is
-intentionally not scheduled. It starts when a real repository needs the
-migration and read-only analysis has proven reliable, so the first supported
-slice is shaped by a real engagement instead of speculation.
+The first write-enabled migration slice is deliberately narrow: a clean,
+plain UIKit repository with one root Xcode project and a uniquely identified
+app target can receive missing baseline files additively. Other architectures
+remain plan-only, and every apply is gated by `can_apply` plus repository-local
+write-scope checks. Generated mise tasks include Mac Catalyst and test tasks
+only when the existing project already supports Catalyst and exposes a test
+target. Apply also rechecks the reviewed Git revision and repository profile,
+creates files exclusively without following symlinks or overwriting intervening
+targets, and keeps generated build data outside the adopted worktree.
 
 ## Contributing
 

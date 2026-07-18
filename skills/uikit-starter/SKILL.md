@@ -35,6 +35,8 @@ Primary responsibility:
    - Ask only the listed blocking questions.
    - Use dry-run before apply when additive baseline adoption is possible.
    - Apply only when the plan returns `can_apply: true`.
+   - The only write-enabled migration slice is additive baseline completion for a clean, plain UIKit repo with one root Xcode project and a uniquely identified app target.
+   - Keep repos with existing mise, Make, Fastlane, CI, or validation scripts plan-only until their command surface is explicitly reconciled.
 4. Migration-assisted mode:
    - Treat SwiftUI and Tuist repos as planning cases unless the user explicitly asks for an architecture migration.
    - Preserve Tuist as source of truth when repo guidance says so.
@@ -61,6 +63,10 @@ Backend output contract:
 - Exit code `2`: apply/dry-run was requested, but `can_apply` or `can_dry_run` does not permit that operation.
 - Dry-run must not write files.
 - Apply must be additive and must not overwrite existing files.
+- Apply must reject unsafe rendered identifiers and any target path that resolves outside the repository, including through symlinks.
+- Apply must reject a stale Git revision or repository profile and create files exclusively through repository-anchored, no-follow writes. Never overwrite a file that appears after planning.
+- Generated mise tasks must match detected capabilities; include Mac Catalyst and test tasks only when the project already supports Catalyst and exposes a test target.
+- Generated adoption workflows must keep DerivedData outside the target worktree.
 
 ## Scenario Guidance
 

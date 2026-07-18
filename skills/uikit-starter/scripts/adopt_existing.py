@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import os
 import re
-import shutil
 import subprocess
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
@@ -65,6 +65,7 @@ class RepositoryProfile:
     repo_path: str
     is_git_repo: bool
     has_dirty_worktree: bool
+    git_head: str | None
     xcode_projects: list[str]
     nested_xcode_projects: list[str]
     xcode_workspaces: list[str]
@@ -87,6 +88,7 @@ class RepositoryProfile:
     devkit_missing_files: list[str]
     has_configuration_dir: bool
     has_test_plan: bool
+    supports_mac_catalyst: bool
 
 
 @dataclass(frozen=True)
@@ -244,6 +246,11 @@ def detect_git_status(repo_root: Path) -> tuple[bool, bool]:
     return True, bool(output)
 
 
+def detect_git_head(repo_root: Path) -> str | None:
+    code, output = run_capture(["git", "rev-parse", "HEAD"], cwd=repo_root)
+    return output if code == 0 else None
+
+
 def infer_app_targets(repo_root: Path) -> list[str]:
     xcode_targets = infer_xcode_targets(repo_root)
     targets = {
@@ -327,6 +334,18 @@ def infer_bundle_identifiers(repo_root: Path) -> list[str]:
             identifiers.add(value)
     identifiers.update(bundle_id for _, _, bundle_id in infer_tuist_targets(repo_root))
     return sorted(identifiers)
+
+
+def supports_mac_catalyst(repo_root: Path) -> bool:
+    values: list[str] = []
+    for project_file in sorted(repo_root.rglob("project.pbxproj")):
+        if project_file.parent.suffix != ".xcodeproj" or should_skip(project_file, repo_root):
+            continue
+        content = project_file.read_text(encoding="utf-8", errors="ignore")
+        values.extend(
+            re.findall(r"SUPPORTS_MACCATALYST\s*=\s*(YES|NO)\s*;", content)
+        )
+    return bool(values) and "YES" in values and "NO" not in values
 
 
 def infer_tuist_targets(repo_root: Path) -> list[tuple[str, str, str]]:
@@ -471,6 +490,7 @@ def analyze_repository(repo_root: Path) -> RepositoryProfile:
         repo_path=str(repo_root),
         is_git_repo=is_git_repo,
         has_dirty_worktree=has_dirty_worktree,
+        git_head=detect_git_head(repo_root),
         xcode_projects=root_xcode_projects,
         nested_xcode_projects=nested_xcode_projects,
         xcode_workspaces=relative_paths(repo_root, "*.xcworkspace"),
@@ -507,6 +527,7 @@ def analyze_repository(repo_root: Path) -> RepositoryProfile:
         devkit_missing_files=devkit_missing_files,
         has_configuration_dir=(repo_root / "Configuration").is_dir(),
         has_test_plan=bool(relative_paths(repo_root, "*.xctestplan")),
+        supports_mac_catalyst=supports_mac_catalyst(repo_root),
     )
 
 
@@ -525,6 +546,20 @@ def repo_setup_blockers(profile: RepositoryProfile) -> list[str]:
         and "xcodegen" not in profile.existing_command_surfaces
     ):
         blockers.append("No Xcode project or Tuist manifest was detected.")
+    if len(profile.xcode_projects) == 1 and profile.has_uikit_lifecycle:
+        try:
+            names = infer_names(profile)
+        except SystemExit:
+            names = None
+        if names is not None:
+            if not adoption_names_are_safe(names):
+                blockers.append(
+                    "Automated apply does not support repository identifiers with unsafe rendered characters."
+                )
+            elif not adoption_write_targets_are_local(Path(profile.repo_path), names):
+                blockers.append(
+                    "Automated apply write targets must resolve inside the repository."
+                )
     return blockers
 
 
@@ -639,10 +674,8 @@ ADVICE_RULES: tuple[AdviceRule, ...] = (
     ),
     AdviceRule(
         when=lambda p, intent: bool(
-            intent == "preserve-existing-workflow"
-            and p.existing_command_surfaces
+            p.existing_command_surfaces
             and p.has_uikit_lifecycle
-            and not p.has_makefile
             and not p.has_tuist
             and not p.has_cocoapods
         ),
@@ -830,9 +863,7 @@ PROPOSED_CHANGE_RULES: tuple[ProposedChangeRule, ...] = (
     ProposedChangeRule(
         when=lambda p, intent: is_uikit_xcode_shape(p)
         and not p.has_modern_uikit_devkit
-        and not (
-            intent == "preserve-existing-workflow" and p.existing_command_surfaces
-        ),
+        and not p.existing_command_surfaces,
         changes=(
             lambda p: (
                 "Add missing Resources/DevKit/scripts for log-aware workflows: "
@@ -843,21 +874,21 @@ PROPOSED_CHANGE_RULES: tuple[ProposedChangeRule, ...] = (
     ProposedChangeRule(
         when=lambda p, intent: is_uikit_xcode_shape(p)
         and not p.has_mise_tasks
-        and not (
-            intent == "preserve-existing-workflow" and p.existing_command_surfaces
-        ),
+        and not p.existing_command_surfaces,
         changes=(
-            "Add Modern.UIKit mise task automation for build, test, formatting, localization, schemes, and license workflows.",
+            "Add capability-matched Modern.UIKit mise tasks without enabling unsupported destinations.",
         ),
     ),
     ProposedChangeRule(
-        when=lambda p, _intent: is_uikit_xcode_shape(p) and not p.has_test_plan,
-        changes=("Add an app-level .xctestplan attached to the shared scheme.",),
+        when=lambda p, _intent: is_uikit_xcode_shape(p)
+        and p.test_targets
+        and not p.has_test_plan,
+        changes=(
+            "Add a standalone app-level .xctestplan for the identified test target without rewriting the shared scheme.",
+        ),
     ),
     ProposedChangeRule(
-        when=lambda p, intent: bool(
-            intent == "preserve-existing-workflow" and p.existing_command_surfaces
-        ),
+        when=lambda p, intent: bool(p.existing_command_surfaces),
         changes=(
             lambda p: (
                 "Translate compatible Modern.UIKit checks into existing command surfaces: "
@@ -868,7 +899,7 @@ PROPOSED_CHANGE_RULES: tuple[ProposedChangeRule, ...] = (
     ProposedChangeRule(
         when=lambda p, _intent: True,
         changes=(
-            "Refresh README.md and AGENTS.md with the adopted repo's actual workflow.",
+            "Keep README.md and AGENTS.md unchanged during automated adoption; document the adopted workflow only after verification.",
             "Preserve app source, resources, target names, signing identity, bundle identifiers, git history, and remotes by default.",
         ),
     ),
@@ -974,8 +1005,18 @@ def mode_and_scenario_for(
     raise AssertionError("SCENARIO_RULES must end with a catch-all rule")
 
 
-def verification_steps_for(scenario: str) -> list[str]:
-    return list(VERIFICATION_BY_SCENARIO.get(scenario, DEFAULT_VERIFICATION))
+def verification_steps_for(
+    scenario: str, profile: RepositoryProfile
+) -> list[str]:
+    steps = list(VERIFICATION_BY_SCENARIO.get(scenario, DEFAULT_VERIFICATION))
+    if scenario != "xcode-uikit-baseline-adoption":
+        return steps
+
+    build_task = "mise build" if profile.supports_mac_catalyst else "mise build-ios"
+    steps[1] = f"Run {build_task} for baseline adoption."
+    if not profile.supports_mac_catalyst or not profile.test_targets:
+        steps.pop()
+    return steps
 
 
 def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> AdoptionPlan:
@@ -997,7 +1038,7 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
         summary = "Adoption can proceed with the conservative Xcode/UIKit baseline plan."
     else:
         summary = "Repository analysis is complete; this project shape remains plan-only."
-    verification = verification_steps_for(scenario)
+    verification = verification_steps_for(scenario, profile)
 
     goal_supported_level = infer_goal_supported_level(
         profile,
@@ -1200,7 +1241,7 @@ def preserve_or_replace_matrix(
             else "preserve for comparison or workflow hardening"
         )
     matrix["workspace"] = (
-        "add or update only for ready xcode-adopt plans"
+        "add a missing wrapper only for ready xcode-adopt plans"
         if scenario == "xcode-uikit-baseline-adoption"
         else "preserve existing project/workspace entrypoints"
     )
@@ -1217,8 +1258,10 @@ def preserve_or_replace_matrix(
         else "port compatible checks into the existing workflow"
     )
     matrix["test_plan"] = (
-        "add if missing and a test target can be identified"
-        if scenario == "xcode-uikit-baseline-adoption" and not profile.has_test_plan
+        "add standalone if missing and a test target can be identified; preserve shared schemes"
+        if scenario == "xcode-uikit-baseline-adoption"
+        and profile.test_targets
+        and not profile.has_test_plan
         else "preserve existing test entrypoints"
     )
     return matrix
@@ -1426,6 +1469,44 @@ def infer_names(profile: RepositoryProfile) -> AdoptionNames:
     )
 
 
+def adoption_names_are_safe(names: AdoptionNames) -> bool:
+    safe_name = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]*$")
+    safe_bundle_identifier = re.compile(r"^[A-Za-z0-9.$(){}:_-]+$")
+    return all(
+        safe_name.fullmatch(value)
+        for value in (
+            names.project_name,
+            names.scheme_name,
+            names.source_dir_name,
+            names.tests_name,
+        )
+    ) and bool(safe_bundle_identifier.fullmatch(names.bundle_identifier))
+
+
+def adoption_write_targets(repo_root: Path, names: AdoptionNames) -> list[Path]:
+    relative_paths = [
+        "Configuration/Base.xcconfig",
+        "Configuration/Development.xcconfig",
+        "Configuration/Release.xcconfig",
+        "Configuration/Version.xcconfig",
+        *DEVKIT_BASELINE_FILES,
+        "mise.toml",
+        f"{names.project_name}.xcworkspace/contents.xcworkspacedata",
+        f"{names.project_name}.xctestplan",
+    ]
+    return [repo_root / relative_path for relative_path in relative_paths]
+
+
+def adoption_write_targets_are_local(repo_root: Path, names: AdoptionNames) -> bool:
+    try:
+        return all(
+            target.resolve(strict=False).is_relative_to(repo_root)
+            for target in adoption_write_targets(repo_root, names)
+        )
+    except (OSError, RuntimeError):
+        return False
+
+
 def rendered_text(source_path: Path, names: AdoptionNames) -> str:
     content = source_path.read_text(encoding="utf-8")
     replacements = [
@@ -1436,7 +1517,97 @@ def rendered_text(source_path: Path, names: AdoptionNames) -> str:
     ]
     for old, new in replacements:
         content = content.replace(old, new)
+    content = content.replace(
+        "$PWD/.DerivedData",
+        f"${{TMPDIR:-/tmp}}/{names.project_name.lower()}-DerivedData",
+    )
     return content
+
+
+def without_mise_task(content: str, task_name: str) -> str:
+    pattern = rf"\n\[tasks\.{re.escape(task_name)}\]\n.*?(?=\n\[tasks\.|\Z)"
+    return re.sub(pattern, "\n", content, flags=re.DOTALL)
+
+
+def rendered_mise_text(
+    source_path: Path, names: AdoptionNames, profile: RepositoryProfile
+) -> str:
+    content = rendered_text(source_path, names)
+    content = without_mise_task(content, "test-tooling")
+    content = without_mise_task(content, "clean")
+    if not profile.supports_mac_catalyst:
+        content = content.replace(
+            'description = "Build iOS Simulator and Mac Catalyst"',
+            'description = "Build iOS Simulator"',
+        )
+        content = content.replace(
+            'run = [{ task = "build-sim" }, { task = "build-catalyst" }]',
+            'run = [{ task = "build-sim" }]',
+        )
+        content = without_mise_task(content, "build-catalyst")
+    if not profile.supports_mac_catalyst or not profile.test_targets:
+        content = without_mise_task(content, "test")
+        content = without_mise_task(content, "test-unit")
+    return content
+
+
+def exclusive_write_repo_file(
+    repo_root: Path,
+    relative_path: str,
+    content: bytes,
+    mode: int,
+) -> bool:
+    path = Path(relative_path)
+    if (
+        path.is_absolute()
+        or not path.parts
+        or any(part in {"", ".", ".."} for part in path.parts)
+    ):
+        raise SystemExit(
+            "Adoption write path must be a normalized repository-relative path."
+        )
+
+    directory_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    try:
+        current_fd = os.open(repo_root, directory_flags)
+    except OSError as error:
+        raise SystemExit("Unable to anchor adoption writes to the repository directory.") from error
+
+    try:
+        for part in path.parts[:-1]:
+            try:
+                next_fd = os.open(part, directory_flags, dir_fd=current_fd)
+            except FileNotFoundError:
+                try:
+                    os.mkdir(part, mode=0o755, dir_fd=current_fd)
+                except FileExistsError:
+                    pass
+                try:
+                    next_fd = os.open(part, directory_flags, dir_fd=current_fd)
+                except OSError as error:
+                    raise SystemExit(
+                        f"Adoption write parent is not a local directory: {relative_path}"
+                    ) from error
+            except OSError as error:
+                raise SystemExit(
+                    f"Adoption write parent is not a local directory: {relative_path}"
+                ) from error
+            os.close(current_fd)
+            current_fd = next_fd
+
+        file_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+        try:
+            file_fd = os.open(path.name, file_flags, mode, dir_fd=current_fd)
+        except OSError as error:
+            if error.errno in {errno.EEXIST, errno.ELOOP}:
+                return False
+            raise SystemExit(f"Unable to create adoption file: {relative_path}") from error
+
+        with os.fdopen(file_fd, "wb") as file:
+            file.write(content)
+        return True
+    finally:
+        os.close(current_fd)
 
 
 def write_rendered_file(
@@ -1444,19 +1615,20 @@ def write_rendered_file(
     repo_root: Path,
     relative_path: str,
     names: AdoptionNames,
+    profile: RepositoryProfile,
 ) -> tuple[str, bool]:
     source_path = template_root / relative_path
-    target_path = repo_root / relative_path
-    if target_path.exists():
-        return relative_path, False
-
-    target_path.parent.mkdir(parents=True, exist_ok=True)
     if source_path.suffix in {".sh", ".py", ".xcconfig", ".toml"}:
-        target_path.write_text(rendered_text(source_path, names), encoding="utf-8")
-        shutil.copymode(source_path, target_path)
+        content = (
+            rendered_mise_text(source_path, names, profile)
+            if relative_path == "mise.toml"
+            else rendered_text(source_path, names)
+        ).encode("utf-8")
     else:
-        shutil.copy2(source_path, target_path)
-    return relative_path, True
+        content = source_path.read_bytes()
+    mode = source_path.stat().st_mode & 0o777
+    created = exclusive_write_repo_file(repo_root, relative_path, content, mode)
+    return relative_path, created
 
 
 def write_test_plan_if_missing(
@@ -1476,7 +1648,6 @@ def write_test_plan_if_missing(
     if target_id is None:
         return None
 
-    target_path = repo_root / relative_path
     payload = {
         "configurations": [
             {
@@ -1497,8 +1668,13 @@ def write_test_plan_if_missing(
         ],
         "version": 1,
     }
-    target_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    return planned
+    created = exclusive_write_repo_file(
+        repo_root,
+        relative_path,
+        (json.dumps(payload, indent=2) + "\n").encode("utf-8"),
+        0o644,
+    )
+    return relative_path, created
 
 
 def workspace_contents(project_name: str) -> str:
@@ -1538,10 +1714,13 @@ def write_workspace_if_missing(
     relative_path, created = planned
     if not created:
         return planned
-    target_path = repo_root / relative_path
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-    target_path.write_text(workspace_contents(names.project_name), encoding="utf-8")
-    return planned
+    created = exclusive_write_repo_file(
+        repo_root,
+        relative_path,
+        workspace_contents(names.project_name).encode("utf-8"),
+        0o644,
+    )
+    return relative_path, created
 
 
 def planned_test_plan_if_missing(
@@ -1582,7 +1761,26 @@ def apply_adoption(
     if not template_root.exists():
         raise SystemExit(f"Template root does not exist: {template_root}")
 
-    names = infer_names(profile)
+    current_profile = analyze_repository(repo_root)
+    if current_profile != profile:
+        raise SystemExit("Repository state changed; review a fresh adoption plan.")
+    current_plan = build_plan(current_profile, plan.adoption_intent)
+    if current_plan != plan:
+        raise SystemExit("Adoption plan does not match the supplied repository profile.")
+    operation_allowed = current_plan.can_dry_run if dry_run else current_plan.can_apply
+    if not operation_allowed:
+        operation = "dry-run" if dry_run else "apply"
+        raise SystemExit(
+            f"Repository state changed; adoption {operation} is no longer permitted."
+        )
+    names = infer_names(current_profile)
+    if not adoption_names_are_safe(names):
+        raise SystemExit(
+            "Adoption apply is not permitted for unsafe repository identifiers."
+        )
+    if not adoption_write_targets_are_local(repo_root, names):
+        raise SystemExit("Adoption write scope must stay inside the repository.")
+
     baseline_files = [
         "Configuration/Base.xcconfig",
         "Configuration/Development.xcconfig",
@@ -1604,7 +1802,13 @@ def apply_adoption(
             else:
                 would_create_files.append(relative_path)
             continue
-        path, created = write_rendered_file(template_root, repo_root, relative_path, names)
+        path, created = write_rendered_file(
+            template_root,
+            repo_root,
+            relative_path,
+            names,
+            profile,
+        )
         if created:
             created_files.append(path)
         else:
@@ -1683,6 +1887,7 @@ def format_text(profile: RepositoryProfile, plan: AdoptionPlan) -> str:
         "Detected:",
         f"- Git repo: {'yes' if profile.is_git_repo else 'no'}",
         f"- Dirty worktree: {'yes' if profile.has_dirty_worktree else 'no'}",
+        f"- Git HEAD: {profile.git_head or '(none)'}",
         f"- Xcode projects: {', '.join(profile.xcode_projects) or '(none)'}",
         f"- Nested Xcode projects: {', '.join(profile.nested_xcode_projects) or '(none)'}",
         f"- Xcode workspaces: {', '.join(profile.xcode_workspaces) or '(none)'}",

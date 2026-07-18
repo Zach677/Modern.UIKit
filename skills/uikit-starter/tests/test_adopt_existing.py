@@ -43,6 +43,16 @@ def commit_all(repo_root: Path) -> None:
     )
 
 
+def git_output(repo_root: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
 def template_fixture() -> Path:
     return Path(__file__).resolve().parents[3]
 
@@ -69,6 +79,29 @@ F829D09D2E252176005A7D1A /* FixtureTests */ = {
         "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
     )
     write(repo_root / "FixtureTests" / "FixtureTests.swift", "import Testing\n")
+
+
+def make_practice_uikit_snapshot_fixture(repo_root: Path) -> None:
+    """Reproduce AtesiT/justPracticeOnUIKITWithoutStoryboard@f59beba."""
+    write(
+        repo_root
+        / "justPracticeOnUIKITWithoutStoryboard.xcodeproj"
+        / "project.pbxproj",
+        """
+3E35B2172F1814E9003DF10E /* justPracticeOnUIKITWithoutStoryboard */ = {
+    isa = PBXNativeTarget;
+    name = justPracticeOnUIKITWithoutStoryboard;
+    productType = "com.apple.product-type.application";
+};
+PRODUCT_BUNDLE_IDENTIFIER = com.education.justPracticeOnUIKITWithoutStoryboard;
+SUPPORTS_MACCATALYST = NO;
+""",
+    )
+    write(
+        repo_root / "justPracticeOnUIKITWithoutStoryboard" / "AppDelegate.swift",
+        "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+    )
+    write(repo_root / "README.md", "# UIKit Practice\n")
 
 
 class AnalyzeRepositoryTests(unittest.TestCase):
@@ -878,6 +911,9 @@ let package = Package(
             workspace = (
                 repo_root / "Fixture.xcworkspace" / "contents.xcworkspacedata"
             ).read_text(encoding="utf-8")
+            run_script = (
+                repo_root / "Resources" / "DevKit" / "scripts" / "run_xcodebuild.sh"
+            ).read_text(encoding="utf-8")
 
         self.assertTrue(result.applied)
         self.assertIn("mise.toml", result.created_files)
@@ -885,9 +921,218 @@ let package = Package(
         self.assertIn("Fixture.xctestplan", result.created_files)
         self.assertIn("Fixture.xcworkspace", mise)
         self.assertIn('IOS_SCHEME="${IOS_SCHEME:-Fixture}"', mise)
+        self.assertIn('description = "Build iOS Simulator"', mise)
+        self.assertNotIn("[tasks.build-catalyst]", mise)
+        self.assertNotIn("[tasks.test]", mise)
+        self.assertNotIn("[tasks.test-tooling]", mise)
+        self.assertNotIn("[tasks.clean]", mise)
+        self.assertIn("${TMPDIR:-/tmp}/fixture-DerivedData", mise)
+        self.assertIn("${TMPDIR:-/tmp}/fixture-DerivedData", run_script)
+        self.assertNotIn("$PWD/.DerivedData", run_script)
         self.assertIn("group:Fixture.xcodeproj", workspace)
         self.assertIn("PRODUCT_BUNDLE_IDENTIFIER", base_config)
         self.assertEqual(readme, "# Product README\n")
+
+    def test_apply_keeps_catalyst_build_and_test_tasks_when_supported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            project_file = repo_root / "Fixture.xcodeproj" / "project.pbxproj"
+            write(
+                project_file,
+                project_file.read_text(encoding="utf-8")
+                + "SUPPORTS_MACCATALYST = YES;\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+            adopt_existing.apply_adoption(profile, plan, template_fixture())
+            mise = (repo_root / "mise.toml").read_text(encoding="utf-8")
+
+        self.assertTrue(profile.supports_mac_catalyst)
+        self.assertIn("[tasks.build-catalyst]", mise)
+        self.assertIn("[tasks.test]", mise)
+        self.assertNotIn("[tasks.test-tooling]", mise)
+        self.assertNotIn("[tasks.clean]", mise)
+
+    def test_real_uikit_snapshot_preserves_identity_and_capabilities(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_practice_uikit_snapshot_fixture(repo_root)
+            commit_all(repo_root)
+            git_output(
+                repo_root,
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/AtesiT/justPracticeOnUIKITWithoutStoryboard.git",
+            )
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+            original_head = git_output(repo_root, "rev-parse", "HEAD")
+            dry_run = adopt_existing.apply_adoption(
+                profile,
+                plan,
+                template_fixture(),
+                dry_run=True,
+            )
+            status_after_dry_run = git_output(repo_root, "status", "--porcelain")
+            result = adopt_existing.apply_adoption(profile, plan, template_fixture())
+            tracked_diff = git_output(repo_root, "diff", "--exit-code")
+            current_head = git_output(repo_root, "rev-parse", "HEAD")
+            current_remote = git_output(repo_root, "remote", "get-url", "origin")
+            mise = (repo_root / "mise.toml").read_text(encoding="utf-8")
+            base_config = (
+                repo_root / "Configuration" / "Base.xcconfig"
+            ).read_text(encoding="utf-8")
+            run_script = (
+                repo_root / "Resources" / "DevKit" / "scripts" / "run_xcodebuild.sh"
+            ).read_text(encoding="utf-8")
+
+        self.assertEqual(plan.scenario, "xcode-uikit-baseline-adoption")
+        self.assertEqual(plan.source_of_truth, "xcode-project")
+        self.assertTrue(plan.can_apply)
+        self.assertFalse(profile.supports_mac_catalyst)
+        self.assertEqual(status_after_dry_run, "")
+        self.assertEqual(set(result.created_files), set(dry_run.would_create_files))
+        self.assertEqual(len(result.created_files), 11)
+        self.assertFalse(any(path.endswith(".xctestplan") for path in result.created_files))
+        self.assertEqual(current_head, original_head)
+        self.assertEqual(tracked_diff, "")
+        self.assertEqual(
+            current_remote,
+            "https://github.com/AtesiT/justPracticeOnUIKITWithoutStoryboard.git",
+        )
+        self.assertIn("com.education.justPracticeOnUIKITWithoutStoryboard", base_config)
+        self.assertNotIn("[tasks.build-catalyst]", mise)
+        self.assertNotIn("[tasks.test]", mise)
+        self.assertNotIn("[tasks.test-tooling]", mise)
+        self.assertNotIn("[tasks.clean]", mise)
+        self.assertIn(
+            "${TMPDIR:-/tmp}/justpracticeonuikitwithoutstoryboard-DerivedData",
+            run_script,
+        )
+
+    def test_exclusive_writer_preserves_an_intervening_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(repo_root / "mise.toml", "existing\n")
+
+            created = adopt_existing.exclusive_write_repo_file(
+                repo_root,
+                "mise.toml",
+                b"replacement\n",
+                0o644,
+            )
+            content = (repo_root / "mise.toml").read_text(encoding="utf-8")
+
+        self.assertFalse(created)
+        self.assertEqual(content, "existing\n")
+
+    def test_exclusive_writer_rejects_a_symlinked_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as external:
+            repo_root = Path(tmp)
+            external_root = Path(external)
+            (repo_root / "Configuration").symlink_to(
+                external_root,
+                target_is_directory=True,
+            )
+
+            with self.assertRaisesRegex(SystemExit, "not a local directory"):
+                adopt_existing.exclusive_write_repo_file(
+                    repo_root,
+                    "Configuration/Base.xcconfig",
+                    b"content\n",
+                    0o644,
+                )
+            external_contents = list(external_root.iterdir())
+
+        self.assertEqual(external_contents, [])
+
+    def test_external_symlink_write_scope_blocks_plan_and_apply(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as external:
+            repo_root = Path(tmp)
+            external_root = Path(external)
+            make_ready_xcode_fixture(repo_root)
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+            (repo_root / "Configuration").symlink_to(external_root, target_is_directory=True)
+
+            with self.assertRaisesRegex(SystemExit, "fresh adoption plan"):
+                adopt_existing.apply_adoption(profile, plan, template_fixture())
+
+            fresh_profile = adopt_existing.analyze_repository(repo_root)
+            fresh_plan = adopt_existing.build_plan(fresh_profile)
+            external_contents = list(external_root.iterdir())
+
+        self.assertEqual(external_contents, [])
+        self.assertFalse(fresh_plan.can_apply)
+        self.assertTrue(
+            any("resolve inside" in blocker for blocker in fresh_plan.blockers)
+        )
+
+    def test_unsafe_project_name_blocks_rendered_apply(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            (repo_root / "Fixture.xcodeproj").rename(
+                repo_root / "Fixture$(touch marker).xcodeproj"
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertFalse(plan.can_apply)
+        self.assertTrue(
+            any("unsafe rendered characters" in blocker for blocker in plan.blockers)
+        )
+
+    def test_apply_rechecks_can_apply_after_repository_state_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+            write(repo_root / "Makefile", "custom:\n\t@echo custom\n")
+
+            with self.assertRaisesRegex(SystemExit, "fresh adoption plan"):
+                adopt_existing.apply_adoption(profile, plan, template_fixture())
+
+            mise_exists = (repo_root / "mise.toml").exists()
+
+        self.assertFalse(mise_exists)
+
+    def test_apply_rejects_a_clean_but_different_repository_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+            (repo_root / "Fixture.xcodeproj").rename(repo_root / "Other.xcodeproj")
+            (repo_root / "Fixture").rename(repo_root / "Other")
+            (repo_root / "FixtureTests").rename(repo_root / "OtherTests")
+            project_file = repo_root / "Other.xcodeproj" / "project.pbxproj"
+            write(
+                project_file,
+                project_file.read_text(encoding="utf-8").replace("Fixture", "Other"),
+            )
+            commit_all(repo_root)
+
+            with self.assertRaisesRegex(SystemExit, "fresh adoption plan"):
+                adopt_existing.apply_adoption(profile, plan, template_fixture())
+
+            mise_exists = (repo_root / "mise.toml").exists()
+
+        self.assertFalse(mise_exists)
 
     def test_dry_run_reports_changes_without_writing_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -916,11 +1161,10 @@ let package = Package(
         self.assertFalse(workspace_exists)
         self.assertFalse(testplan_exists)
 
-    def test_apply_does_not_touch_existing_makefile_and_preserves_devkit_files(self) -> None:
+    def test_apply_preserves_existing_devkit_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)
             make_ready_xcode_fixture(repo_root)
-            write(repo_root / "Makefile", "custom:\n\t@echo custom\n")
             write(
                 repo_root / "Resources" / "DevKit" / "scripts" / "run_xcodebuild.sh",
                 "#!/usr/bin/env bash\necho custom\n",
@@ -931,15 +1175,32 @@ let package = Package(
             plan = adopt_existing.build_plan(profile)
             result = adopt_existing.apply_adoption(profile, plan, template_fixture())
 
-            makefile = (repo_root / "Makefile").read_text(encoding="utf-8")
             run_script = (
                 repo_root / "Resources" / "DevKit" / "scripts" / "run_xcodebuild.sh"
             ).read_text(encoding="utf-8")
 
         self.assertTrue(result.applied)
         self.assertIn("Resources/DevKit/scripts/run_xcodebuild.sh", result.skipped_files)
-        self.assertEqual(makefile, "custom:\n\t@echo custom\n")
         self.assertEqual(run_script, "#!/usr/bin/env bash\necho custom\n")
+
+    def test_existing_makefile_keeps_auto_adoption_plan_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            make_ready_xcode_fixture(repo_root)
+            write(repo_root / "Makefile", "custom:\n\t@echo custom\n")
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(plan.status, "needs-confirmation")
+        self.assertFalse(plan.can_apply)
+        self.assertTrue(
+            any("translated" in question for question in plan.recommended_questions)
+        )
+        self.assertFalse(
+            any("Add capability-matched" in change for change in plan.proposed_changes)
+        )
 
     def test_partial_devkit_reports_missing_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -975,6 +1236,7 @@ let package = Package(
         self.assertIn("0", payload["exit_code_contract"])
         self.assertIn("2", payload["exit_code_contract"])
         self.assertIn("profile", payload)
+        self.assertFalse(payload["profile"]["supports_mac_catalyst"])
         self.assertIn("plan", payload)
         self.assertIn("adoption_intent", payload["plan"])
         self.assertTrue(payload["plan"]["can_apply"])
