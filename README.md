@@ -90,7 +90,7 @@ Current phase: **stable template, adoption tooling in preview**.
 - [x] CI with log-aware build/test, localization, and tooling test gates.
 - [x] Strengthen app target detection beyond Info.plist paths ([#3](https://github.com/Zach677/Modern.UIKit/issues/3)).
 - [ ] Broaden real repo smoke coverage ([#1](https://github.com/Zach677/Modern.UIKit/issues/1)).
-- [ ] Improve source-of-truth detection for XcodeGen, Fastlane, and script entrypoints ([#2](https://github.com/Zach677/Modern.UIKit/issues/2)).
+- [x] Improve source-of-truth detection for XcodeGen, Fastlane, and script entrypoints ([#2](https://github.com/Zach677/Modern.UIKit/issues/2)).
 
 Migration tooling ([#4](https://github.com/Zach677/Modern.UIKit/issues/4)) is
 intentionally not scheduled. It starts when a real repository needs the

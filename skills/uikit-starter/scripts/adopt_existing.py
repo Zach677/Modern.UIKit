@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -46,6 +47,17 @@ DEVKIT_BASELINE_FILES = [
     "Resources/DevKit/scripts/tidy_workspace_schemes.py",
     "Resources/DevKit/scripts/validate_xcstrings.py",
 ]
+SCRIPT_ENTRYPOINT_TOKENS = {
+    "build",
+    "check",
+    "ci",
+    "format",
+    "lint",
+    "test",
+    "tests",
+    "validate",
+    "verify",
+}
 
 
 @dataclass(frozen=True)
@@ -70,6 +82,7 @@ class RepositoryProfile:
     has_tuist_source_guidance: bool
     has_makefile: bool
     existing_command_surfaces: list[str]
+    validation_entrypoints: list[str]
     has_modern_uikit_devkit: bool
     devkit_missing_files: list[str]
     has_configuration_dir: bool
@@ -159,7 +172,7 @@ def recursive_relative_paths(repo_root: Path, pattern: str) -> list[str]:
 def should_skip(path: Path, repo_root: Path) -> bool:
     try:
         parts = path.relative_to(repo_root).parts
-    except ValueError:
+    except (OSError, RuntimeError, ValueError):
         return True
     return any(part in SKIP_DIR_NAMES for part in parts)
 
@@ -331,27 +344,84 @@ def infer_tuist_targets(repo_root: Path) -> list[tuple[str, str, str]]:
     return [(match.group(1), match.group(2), match.group(3)) for match in matches]
 
 
-def detect_existing_command_surfaces(repo_root: Path) -> list[str]:
+def is_repo_local_file(path: Path, repo_root: Path) -> bool:
+    if not path.is_file() or path.is_symlink():
+        return False
+    try:
+        path.resolve().relative_to(repo_root)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return True
+
+
+def is_repo_local_directory(path: Path, repo_root: Path) -> bool:
+    if not path.is_dir() or path.is_symlink():
+        return False
+    try:
+        path.resolve().relative_to(repo_root)
+    except ValueError:
+        return False
+    return True
+
+
+def detect_validation_entrypoints(repo_root: Path) -> list[str]:
+    scripts_dir = repo_root / "scripts"
+    if not is_repo_local_directory(scripts_dir, repo_root):
+        return []
+
+    entrypoints: list[str] = []
+    for directory, directory_names, file_names in os.walk(
+        scripts_dir, followlinks=False
+    ):
+        directory_path = Path(directory)
+        directory_names[:] = [
+            name
+            for name in directory_names
+            if is_repo_local_directory(directory_path / name, repo_root)
+            and not should_skip(directory_path / name, repo_root)
+        ]
+        for name in sorted(file_names):
+            path = directory_path / name
+            if not is_repo_local_file(path, repo_root) or should_skip(path, repo_root):
+                continue
+            name_tokens = set(re.split(r"[^a-z0-9]+", path.stem.lower()))
+            if name_tokens.isdisjoint(SCRIPT_ENTRYPOINT_TOKENS):
+                continue
+            entrypoints.append(str(path.relative_to(repo_root)))
+    return sorted(entrypoints)
+
+
+def detect_existing_command_surfaces(
+    repo_root: Path, validation_entrypoints: list[str]
+) -> list[str]:
     surfaces: list[str] = []
     candidates = [
-        ("Makefile", "make"),
-        ("mise.toml", "mise"),
-        ("justfile", "just"),
-        ("Justfile", "just"),
-        ("fastlane/Fastfile", "fastlane"),
-        ("project.yml", "xcodegen"),
-        ("Project.yml", "xcodegen"),
-        ("WORKSPACE", "bazel"),
-        ("WORKSPACE.bazel", "bazel"),
-        ("MODULE.bazel", "bazel"),
-        (".bazelrc", "bazel"),
-        ("BUCK", "buck"),
-        ("BUCK2", "buck"),
-        (".github/workflows", "github-actions"),
+        ("Makefile", "make", "file"),
+        ("mise.toml", "mise", "file"),
+        ("justfile", "just", "file"),
+        ("Justfile", "just", "file"),
+        ("fastlane/Fastfile", "fastlane", "file"),
+        ("project.yml", "xcodegen", "file"),
+        ("Project.yml", "xcodegen", "file"),
+        ("WORKSPACE", "bazel", "file"),
+        ("WORKSPACE.bazel", "bazel", "file"),
+        ("MODULE.bazel", "bazel", "file"),
+        (".bazelrc", "bazel", "file"),
+        ("BUCK", "buck", "file"),
+        ("BUCK2", "buck", "file"),
+        (".github/workflows", "github-actions", "directory"),
     ]
-    for relative_path, label in candidates:
-        if (repo_root / relative_path).exists() and label not in surfaces:
+    for relative_path, label, kind in candidates:
+        path = repo_root / relative_path
+        exists = (
+            is_repo_local_file(path, repo_root)
+            if kind == "file"
+            else is_repo_local_directory(path, repo_root)
+        )
+        if exists and label not in surfaces:
             surfaces.append(label)
+    if validation_entrypoints:
+        surfaces.append("scripts")
     return sorted(surfaces)
 
 
@@ -385,7 +455,10 @@ def analyze_repository(repo_root: Path) -> RepositoryProfile:
     is_git_repo, has_dirty_worktree = detect_git_status(repo_root)
     root_xcode_projects = relative_paths(repo_root, "*.xcodeproj")
     all_xcode_projects = recursive_relative_paths(repo_root, "*.xcodeproj")
-    existing_command_surfaces = detect_existing_command_surfaces(repo_root)
+    validation_entrypoints = detect_validation_entrypoints(repo_root)
+    existing_command_surfaces = detect_existing_command_surfaces(
+        repo_root, validation_entrypoints
+    )
     nested_xcode_projects = [
         path for path in all_xcode_projects if path not in root_xcode_projects
     ]
@@ -427,8 +500,9 @@ def analyze_repository(repo_root: Path) -> RepositoryProfile:
             repo_root,
             ["Tuist as the source of truth", "Use Tuist as the source of truth"],
         ),
-        has_makefile=(repo_root / "Makefile").exists(),
+        has_makefile="make" in existing_command_surfaces,
         existing_command_surfaces=existing_command_surfaces,
+        validation_entrypoints=validation_entrypoints,
         has_modern_uikit_devkit=not devkit_missing_files,
         devkit_missing_files=devkit_missing_files,
         has_configuration_dir=(repo_root / "Configuration").is_dir(),
@@ -448,6 +522,7 @@ def repo_setup_blockers(profile: RepositoryProfile) -> list[str]:
         and not profile.xcode_workspaces
         and not profile.has_tuist
         and not profile.has_swift_package
+        and "xcodegen" not in profile.existing_command_surfaces
     ):
         blockers.append("No Xcode project or Tuist manifest was detected.")
     return blockers
@@ -466,6 +541,7 @@ def is_plain_xcode_shape(profile: RepositoryProfile) -> bool:
         not profile.has_tuist
         and not profile.has_cocoapods
         and not is_swiftpm_nested_app_shape(profile)
+        and "xcodegen" not in profile.existing_command_surfaces
     )
 
 
@@ -499,7 +575,7 @@ class ScenarioRule:
 
 @dataclass(frozen=True)
 class ProposedChangeRule:
-    when: Callable[[RepositoryProfile], bool]
+    when: Callable[[RepositoryProfile, str], bool]
     changes: tuple[str | Callable[[RepositoryProfile], str], ...] = ()
 
 
@@ -662,6 +738,11 @@ SCENARIO_RULES: tuple[ScenarioRule, ...] = (
         scenario="tuist-source-preserving-baseline",
     ),
     ScenarioRule(
+        when=lambda p, intent: "xcodegen" in p.existing_command_surfaces,
+        mode="xcodegen-source-preserving",
+        scenario="xcodegen-source-preserving-baseline",
+    ),
+    ScenarioRule(
         when=lambda p, intent: p.has_cocoapods,
         mode="workspace-preserving-assisted",
         scenario="cocoapods-workspace-guided-decision",
@@ -710,32 +791,32 @@ SCENARIO_RULES: tuple[ScenarioRule, ...] = (
 
 PROPOSED_CHANGE_RULES: tuple[ProposedChangeRule, ...] = (
     ProposedChangeRule(
-        when=lambda p: p.has_tuist,
+        when=lambda p, _intent: p.has_tuist,
         changes=(
             "Keep Tuist manifests and existing repo-scoped commands as the source of truth by default.",
         ),
     ),
     ProposedChangeRule(
-        when=lambda p: p.has_tuist and p.has_mise_tasks,
+        when=lambda p, _intent: p.has_tuist and p.has_mise_tasks,
         changes=(
             "Map any adopted build/test ideas into existing mise tasks instead of adding a parallel command surface.",
         ),
     ),
     ProposedChangeRule(
-        when=lambda p: p.has_tuist and not p.has_modern_uikit_devkit,
+        when=lambda p, _intent: p.has_tuist and not p.has_modern_uikit_devkit,
         changes=(
             "Port only compatible DevKit ideas into the Tuist/mise workflow after the migration decision is explicit.",
         ),
     ),
     ProposedChangeRule(
-        when=lambda p: not p.has_tuist and p.has_cocoapods,
+        when=lambda p, _intent: not p.has_tuist and p.has_cocoapods,
         changes=(
             "Preserve Podfile, existing workspace entrypoint, and dependency workflow by default.",
             "Map compatible DevKit checks into the existing workspace instead of regenerating dependency state.",
         ),
     ),
     ProposedChangeRule(
-        when=lambda p: not p.has_tuist
+        when=lambda p, _intent: not p.has_tuist
         and not p.has_cocoapods
         and is_swiftpm_nested_app_shape(p),
         changes=(
@@ -743,11 +824,15 @@ PROPOSED_CHANGE_RULES: tuple[ProposedChangeRule, ...] = (
         ),
     ),
     ProposedChangeRule(
-        when=lambda p: is_uikit_xcode_shape(p) and not p.has_configuration_dir,
+        when=lambda p, _intent: is_uikit_xcode_shape(p) and not p.has_configuration_dir,
         changes=("Add the Modern.UIKit Configuration/*.xcconfig baseline.",),
     ),
     ProposedChangeRule(
-        when=lambda p: is_uikit_xcode_shape(p) and not p.has_modern_uikit_devkit,
+        when=lambda p, intent: is_uikit_xcode_shape(p)
+        and not p.has_modern_uikit_devkit
+        and not (
+            intent == "preserve-existing-workflow" and p.existing_command_surfaces
+        ),
         changes=(
             lambda p: (
                 "Add missing Resources/DevKit/scripts for log-aware workflows: "
@@ -756,17 +841,32 @@ PROPOSED_CHANGE_RULES: tuple[ProposedChangeRule, ...] = (
         ),
     ),
     ProposedChangeRule(
-        when=lambda p: is_uikit_xcode_shape(p) and not p.has_mise_tasks,
+        when=lambda p, intent: is_uikit_xcode_shape(p)
+        and not p.has_mise_tasks
+        and not (
+            intent == "preserve-existing-workflow" and p.existing_command_surfaces
+        ),
         changes=(
             "Add Modern.UIKit mise task automation for build, test, formatting, localization, schemes, and license workflows.",
         ),
     ),
     ProposedChangeRule(
-        when=lambda p: is_uikit_xcode_shape(p) and not p.has_test_plan,
+        when=lambda p, _intent: is_uikit_xcode_shape(p) and not p.has_test_plan,
         changes=("Add an app-level .xctestplan attached to the shared scheme.",),
     ),
     ProposedChangeRule(
-        when=lambda p: True,
+        when=lambda p, intent: bool(
+            intent == "preserve-existing-workflow" and p.existing_command_surfaces
+        ),
+        changes=(
+            lambda p: (
+                "Translate compatible Modern.UIKit checks into existing command surfaces: "
+                f"{', '.join(p.existing_command_surfaces)}."
+            ),
+        ),
+    ),
+    ProposedChangeRule(
+        when=lambda p, _intent: True,
         changes=(
             "Refresh README.md and AGENTS.md with the adopted repo's actual workflow.",
             "Preserve app source, resources, target names, signing identity, bundle identifiers, git history, and remotes by default.",
@@ -810,6 +910,12 @@ XCODE_PROJECT_DISCOVERY_VERIFICATION = (
     "Do not apply UIKit starter files to a non-UIKit Xcode project.",
 )
 
+XCODEGEN_VERIFICATION = (
+    "Review the XcodeGen source-preserving plan before applying changes.",
+    "Use the repository's existing XcodeGen and validation commands.",
+    "Do not edit generated Xcode project files as the source of truth.",
+)
+
 DEFAULT_VERIFICATION = (
     "Review the generated adoption plan before applying changes.",
     "Run mise build for baseline adoption.",
@@ -824,6 +930,7 @@ VERIFICATION_BY_SCENARIO: dict[str, tuple[str, ...]] = {
     "workspace-only-guided-decision": WORKSPACE_ONLY_VERIFICATION,
     "swiftpm-nested-app-guided-decision": SWIFTPM_NESTED_VERIFICATION,
     "swiftpm-package-guided-decision": SWIFTPM_PACKAGE_VERIFICATION,
+    "xcodegen-source-preserving-baseline": XCODEGEN_VERIFICATION,
     "xcode-appkit-guided-decision": XCODE_PROJECT_DISCOVERY_VERIFICATION,
     "xcode-project-guided-decision": XCODE_PROJECT_DISCOVERY_VERIFICATION,
 }
@@ -848,10 +955,12 @@ def advice_for(
     return questions, warnings
 
 
-def proposed_changes_for(profile: RepositoryProfile) -> list[str]:
+def proposed_changes_for(
+    profile: RepositoryProfile, adoption_intent: str
+) -> list[str]:
     changes: list[str] = []
     for rule in PROPOSED_CHANGE_RULES:
-        if rule.when(profile):
+        if rule.when(profile, adoption_intent):
             changes.extend(resolve_text(text, profile) for text in rule.changes)
     return changes
 
@@ -876,7 +985,7 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
     blockers = repo_setup_blockers(profile)
     questions, warnings = advice_for(profile, adoption_intent)
 
-    proposed_changes = proposed_changes_for(profile)
+    proposed_changes = proposed_changes_for(profile, adoption_intent)
     mode, scenario = mode_and_scenario_for(profile, adoption_intent)
 
     status = "blocked" if blockers else "needs-confirmation" if questions else "ready"
@@ -995,6 +1104,8 @@ def write_scope_for_plan(mode: str, status: str, adoption_intent: str) -> list[s
 def source_of_truth_for_profile(profile: RepositoryProfile) -> str:
     if profile.has_tuist:
         return "tuist"
+    if "xcodegen" in profile.existing_command_surfaces:
+        return "xcodegen"
     if profile.has_cocoapods:
         return "cocoapods-workspace"
     if profile.has_swift_package and profile.nested_xcode_projects and not profile.xcode_projects:
@@ -1074,6 +1185,8 @@ def preserve_or_replace_matrix(
     }
     if profile.has_tuist:
         matrix["tuist"] = "preserve as source of truth by default"
+    if "xcodegen" in profile.existing_command_surfaces:
+        matrix["xcodegen"] = "preserve project.yml as the project source of truth"
     if profile.has_mise_tasks:
         matrix["mise"] = "preserve; map adopted commands into existing tasks"
     if profile.has_cocoapods:
@@ -1093,6 +1206,11 @@ def preserve_or_replace_matrix(
     )
     if profile.has_makefile:
         matrix["makefile"] = "preserve existing command surface"
+    if profile.existing_command_surfaces:
+        matrix["command_surfaces"] = (
+            "preserve; translate compatible checks into: "
+            f"{', '.join(profile.existing_command_surfaces)}"
+        )
     matrix["devkit"] = (
         "complete missing baseline files"
         if scenario == "xcode-uikit-baseline-adoption" and profile.devkit_missing_files
@@ -1126,8 +1244,12 @@ FORBIDDEN_ACTION_RULES: tuple[
         "Do not replace Project.swift, Workspace.swift, or Tuist-generated source of truth without explicit approval.",
     ),
     (
-        lambda p: p.has_mise_tasks,
-        "Do not add a parallel command surface that conflicts with existing mise tasks.",
+        lambda p: bool(p.existing_command_surfaces),
+        "Do not add a parallel command surface that conflicts with existing commands.",
+    ),
+    (
+        lambda p: "xcodegen" in p.existing_command_surfaces,
+        "Do not edit generated Xcode project files instead of project.yml.",
     ),
     (
         lambda p: p.has_swiftui_entry,
@@ -1198,6 +1320,10 @@ NEXT_ACTIONS_BY_SCENARIO: dict[str, tuple[str, ...]] = {
     "tuist-source-preserving-baseline": (
         "Preserve Tuist manifests as source of truth by default.",
         "Map compatible baseline ideas into existing Tuist or mise workflows instead of adding parallel Xcode command surfaces.",
+    ),
+    "xcodegen-source-preserving-baseline": (
+        "Preserve project.yml as the project source of truth.",
+        "Map compatible baseline ideas into existing XcodeGen and validation commands.",
     ),
     "cocoapods-workspace-guided-decision": (
         "Preserve Podfile and the existing workspace while comparing reusable Modern.UIKit practices.",
@@ -1571,6 +1697,7 @@ def format_text(profile: RepositoryProfile, plan: AdoptionPlan) -> str:
         f"- Bundle identifiers: {', '.join(profile.bundle_identifiers) or '(none)'}",
         f"- mise tasks: {'yes' if profile.has_mise_tasks else 'no'}",
         f"- Existing command surfaces: {', '.join(profile.existing_command_surfaces) or '(none)'}",
+        f"- Validation entrypoints: {', '.join(json.dumps(path) for path in profile.validation_entrypoints) or '(none)'}",
         f"- SwiftUI-first guidance: {'yes' if profile.has_swiftui_first_guidance else 'no'}",
         f"- Tuist source guidance: {'yes' if profile.has_tuist_source_guidance else 'no'}",
         f"- Modern.UIKit DevKit complete: {'yes' if profile.has_modern_uikit_devkit else 'no'}",

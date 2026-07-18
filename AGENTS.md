@@ -189,6 +189,7 @@
 - Package resolution and license refresh use `mise package-resolve` or `mise scan-license`.
 - Release flows that refresh licenses against an intentionally dirty tree must pass `dirty=1`, for example `mise package-resolve -- dirty=1`; this is forwarded by the mise task as `ALLOW_DIRTY=1` to the scan script.
 - Existing-repo adoption starts with `python3 skills/uikit-starter/scripts/adopt_existing.py --repo-path <repo>`. Treat its output as the agent-facing decision plan; ask only the blocking questions it surfaces and preserve existing repo identity by default. Use `--apply` only for `Status: ready` / `Mode: xcode-adopt` plans; the first slice is additive and must not overwrite existing files.
+- Under `preserve-existing-workflow`, keep detected XcodeGen, Fastlane, mise, Make, and root `scripts/` validation entrypoints as the existing source of truth or command surface; translate compatible checks into them instead of proposing parallel mise or DevKit script workflows.
 - Keep `.gitattributes` Linguist exclusions scoped to repository tooling and automation surfaces. Do not exclude app target source or Swift tests from language statistics.
 - Manually collected upstream license texts belong under `Resources/AdditionalLicenses/<PackageName>/LICENSE` or `COPYING`. The scanner prefers these files over bundled dependency licenses when both exist.
 - Format with `mise format` and check formatting with `mise format-lint`; submodules under `Vendor/` and build artifacts are excluded automatically.
