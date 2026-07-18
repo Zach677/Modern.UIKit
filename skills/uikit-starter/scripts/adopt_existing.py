@@ -13,12 +13,20 @@ from pathlib import Path
 
 
 SKIP_DIR_NAMES = {
+    ".app-build",
     ".build",
     ".git",
     ".swiftpm",
+    ".xcodebuild",
     "DerivedData",
     "Vendor",
     "xcuserdata",
+}
+
+APP_PRODUCT_TYPE = "com.apple.product-type.application"
+TEST_PRODUCT_TYPES = {
+    "com.apple.product-type.bundle.unit-test",
+    "com.apple.product-type.bundle.ui-testing",
 }
 
 SCHEMA_VERSION = "1.0"
@@ -53,6 +61,7 @@ class RepositoryProfile:
     has_swift_package: bool
     has_swiftui_entry: bool
     has_uikit_lifecycle: bool
+    has_appkit_lifecycle: bool
     app_targets: list[str]
     test_targets: list[str]
     bundle_identifiers: list[str]
@@ -110,6 +119,13 @@ class ApplyResult:
     would_create_files: list[str]
     would_skip_files: list[str]
     message: str
+
+
+@dataclass(frozen=True)
+class XcodeTarget:
+    identifier: str
+    name: str
+    product_type: str
 
 
 def run_capture(command: list[str], cwd: Path) -> tuple[int, str]:
@@ -216,25 +232,74 @@ def detect_git_status(repo_root: Path) -> tuple[bool, bool]:
 
 
 def infer_app_targets(repo_root: Path) -> list[str]:
-    targets: set[str] = set()
-    for path in sorted(repo_root.glob("*/Resources/Info.plist")):
-        if should_skip(path, repo_root):
-            continue
-        targets.add(path.relative_to(repo_root).parts[0])
+    xcode_targets = infer_xcode_targets(repo_root)
+    targets = {
+        target.name
+        for target in xcode_targets
+        if target.product_type == APP_PRODUCT_TYPE
+    }
+    if not xcode_targets:
+        for path in sorted(repo_root.glob("*/Resources/Info.plist")):
+            if should_skip(path, repo_root):
+                continue
+            targets.add(path.relative_to(repo_root).parts[0])
     targets.update(name for name, product, _ in infer_tuist_targets(repo_root) if product == "app")
     return sorted(targets)
 
 
 def infer_test_targets(repo_root: Path) -> list[str]:
+    xcode_targets = infer_xcode_targets(repo_root)
     targets = {
-        path.name
-        for path in repo_root.iterdir()
-        if path.is_dir() and path.name.endswith("Tests")
+        target.name
+        for target in xcode_targets
+        if target.product_type in TEST_PRODUCT_TYPES
     }
+    if not xcode_targets:
+        targets.update(
+            path.name
+            for path in repo_root.iterdir()
+            if path.is_dir() and path.name.endswith("Tests")
+        )
     targets.update(
         name for name, product, _ in infer_tuist_targets(repo_root) if product == "unitTests"
     )
     return sorted(targets)
+
+
+def parse_xcode_targets(project_file: Path) -> list[XcodeTarget]:
+    if not project_file.exists():
+        return []
+
+    content = project_file.read_text(encoding="utf-8", errors="ignore")
+    pattern = re.compile(
+        r"^\s*([A-F0-9]{24}) /\* ([^\r\n]+?) \*/ = \{\s*"
+        r"isa = PBXNativeTarget;(.*?)^\s*\};",
+        flags=re.DOTALL | re.MULTILINE,
+    )
+    targets: list[XcodeTarget] = []
+    for match in pattern.finditer(content):
+        product_type = re.search(
+            r'^\s*productType = "?([^";]+)"?;',
+            match.group(3),
+            flags=re.MULTILINE,
+        )
+        targets.append(
+            XcodeTarget(
+                identifier=match.group(1),
+                name=match.group(2),
+                product_type=product_type.group(1) if product_type else "",
+            )
+        )
+    return targets
+
+
+def infer_xcode_targets(repo_root: Path) -> list[XcodeTarget]:
+    targets: list[XcodeTarget] = []
+    for project_file in sorted(repo_root.rglob("project.pbxproj")):
+        if project_file.parent.suffix != ".xcodeproj" or should_skip(project_file, repo_root):
+            continue
+        targets.extend(parse_xcode_targets(project_file))
+    return targets
 
 
 def infer_bundle_identifiers(repo_root: Path) -> list[str]:
@@ -304,13 +369,9 @@ def has_guidance(repo_root: Path, needles: list[str]) -> bool:
 
 
 def infer_native_target_id(project_file: Path, target_name: str) -> str | None:
-    if not project_file.exists():
-        return None
-    content = project_file.read_text(encoding="utf-8", errors="ignore")
-    pattern = rf"\b([A-F0-9]{{24}}) /\* {re.escape(target_name)} \*/ = \{{isa = PBXNativeTarget;"
-    match = re.search(pattern, content)
-    if match:
-        return match.group(1)
+    for target in parse_xcode_targets(project_file):
+        if target.name == target_name:
+            return target.identifier
     return None
 
 
@@ -349,6 +410,10 @@ def analyze_repository(repo_root: Path) -> RepositoryProfile:
         has_uikit_lifecycle=contains_any(
             swift_files(repo_root),
             ["UIApplicationDelegate", "UISceneDelegate", "UIWindowScene"],
+        ),
+        has_appkit_lifecycle=contains_any(
+            swift_files(repo_root),
+            ["NSApplicationDelegate", "NSApplication.shared", "NSApplicationMain"],
         ),
         app_targets=infer_app_targets(repo_root),
         test_targets=infer_test_targets(repo_root),
@@ -401,6 +466,14 @@ def is_plain_xcode_shape(profile: RepositoryProfile) -> bool:
         not profile.has_tuist
         and not profile.has_cocoapods
         and not is_swiftpm_nested_app_shape(profile)
+    )
+
+
+def is_uikit_xcode_shape(profile: RepositoryProfile) -> bool:
+    return bool(
+        is_plain_xcode_shape(profile)
+        and profile.has_uikit_lifecycle
+        and not profile.has_swiftui_entry
     )
 
 
@@ -464,7 +537,7 @@ ADVICE_RULES: tuple[AdviceRule, ...] = (
         when=lambda p, intent: bool(
             p.xcode_projects and not p.app_targets and not p.has_tuist
         ),
-        questions=("Which app target should receive the UIKit starter baseline?",),
+        questions=("Which app target is the main product target?",),
     ),
     AdviceRule(
         when=lambda p, intent: len(p.xcode_projects) > 1,
@@ -472,7 +545,7 @@ ADVICE_RULES: tuple[AdviceRule, ...] = (
     ),
     AdviceRule(
         when=lambda p, intent: len(p.app_targets) > 1,
-        questions=("Which app target should receive the UIKit starter baseline?",),
+        questions=("Which app target is the main product target?",),
     ),
     AdviceRule(
         when=lambda p, intent: p.has_cocoapods,
@@ -492,6 +565,7 @@ ADVICE_RULES: tuple[AdviceRule, ...] = (
         when=lambda p, intent: bool(
             intent == "preserve-existing-workflow"
             and p.existing_command_surfaces
+            and p.has_uikit_lifecycle
             and not p.has_makefile
             and not p.has_tuist
             and not p.has_cocoapods
@@ -533,6 +607,12 @@ ADVICE_RULES: tuple[AdviceRule, ...] = (
     AdviceRule(
         when=lambda p, intent: p.has_swiftui_entry,
         warnings=("SwiftUI entry migration is plan-only in this first slice.",),
+    ),
+    AdviceRule(
+        when=lambda p, intent: p.has_appkit_lifecycle,
+        warnings=(
+            "AppKit lifecycle detected; automated Modern.UIKit adoption is disabled.",
+        ),
     ),
     AdviceRule(
         when=lambda p, intent: bool(
@@ -607,9 +687,19 @@ SCENARIO_RULES: tuple[ScenarioRule, ...] = (
         scenario="xcode-swiftui-entry-migration",
     ),
     ScenarioRule(
-        when=lambda p, intent: bool(p.xcode_projects),
+        when=lambda p, intent: bool(p.xcode_projects and p.has_uikit_lifecycle),
         mode="xcode-adopt",
         scenario="xcode-uikit-baseline-adoption",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: bool(p.xcode_projects and p.has_appkit_lifecycle),
+        mode="xcode-project-assisted",
+        scenario="xcode-appkit-guided-decision",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: bool(p.xcode_projects),
+        mode="xcode-project-assisted",
+        scenario="xcode-project-guided-decision",
     ),
     ScenarioRule(
         when=lambda p, intent: True,
@@ -653,11 +743,11 @@ PROPOSED_CHANGE_RULES: tuple[ProposedChangeRule, ...] = (
         ),
     ),
     ProposedChangeRule(
-        when=lambda p: is_plain_xcode_shape(p) and not p.has_configuration_dir,
+        when=lambda p: is_uikit_xcode_shape(p) and not p.has_configuration_dir,
         changes=("Add the Modern.UIKit Configuration/*.xcconfig baseline.",),
     ),
     ProposedChangeRule(
-        when=lambda p: is_plain_xcode_shape(p) and not p.has_modern_uikit_devkit,
+        when=lambda p: is_uikit_xcode_shape(p) and not p.has_modern_uikit_devkit,
         changes=(
             lambda p: (
                 "Add missing Resources/DevKit/scripts for log-aware workflows: "
@@ -666,13 +756,13 @@ PROPOSED_CHANGE_RULES: tuple[ProposedChangeRule, ...] = (
         ),
     ),
     ProposedChangeRule(
-        when=lambda p: is_plain_xcode_shape(p) and not p.has_mise_tasks,
+        when=lambda p: is_uikit_xcode_shape(p) and not p.has_mise_tasks,
         changes=(
             "Add Modern.UIKit mise task automation for build, test, formatting, localization, schemes, and license workflows.",
         ),
     ),
     ProposedChangeRule(
-        when=lambda p: is_plain_xcode_shape(p) and not p.has_test_plan,
+        when=lambda p: is_uikit_xcode_shape(p) and not p.has_test_plan,
         changes=("Add an app-level .xctestplan attached to the shared scheme.",),
     ),
     ProposedChangeRule(
@@ -714,6 +804,12 @@ SWIFTPM_PACKAGE_VERIFICATION = (
     "Do not add Xcode workspace, mise automation, or UIKit starter files until app ownership is explicit.",
 )
 
+XCODE_PROJECT_DISCOVERY_VERIFICATION = (
+    "Review the detected product types and choose the main app target before adoption.",
+    "Use the repository's existing build and test commands for validation.",
+    "Do not apply UIKit starter files to a non-UIKit Xcode project.",
+)
+
 DEFAULT_VERIFICATION = (
     "Review the generated adoption plan before applying changes.",
     "Run mise build for baseline adoption.",
@@ -728,6 +824,8 @@ VERIFICATION_BY_SCENARIO: dict[str, tuple[str, ...]] = {
     "workspace-only-guided-decision": WORKSPACE_ONLY_VERIFICATION,
     "swiftpm-nested-app-guided-decision": SWIFTPM_NESTED_VERIFICATION,
     "swiftpm-package-guided-decision": SWIFTPM_PACKAGE_VERIFICATION,
+    "xcode-appkit-guided-decision": XCODE_PROJECT_DISCOVERY_VERIFICATION,
+    "xcode-project-guided-decision": XCODE_PROJECT_DISCOVERY_VERIFICATION,
 }
 
 
@@ -782,11 +880,14 @@ def build_plan(profile: RepositoryProfile, adoption_intent: str = "auto") -> Ado
     mode, scenario = mode_and_scenario_for(profile, adoption_intent)
 
     status = "blocked" if blockers else "needs-confirmation" if questions else "ready"
-    summary = {
-        "blocked": "Adoption needs repo setup cleanup before changes are safe.",
-        "needs-confirmation": "Adoption can proceed after the agent resolves the listed decisions.",
-        "ready": "Adoption can proceed with the conservative Xcode/UIKit baseline plan.",
-    }[status]
+    if status == "blocked":
+        summary = "Adoption needs repo setup cleanup before changes are safe."
+    elif status == "needs-confirmation":
+        summary = "Adoption can proceed after the agent resolves the listed decisions."
+    elif mode == "xcode-adopt":
+        summary = "Adoption can proceed with the conservative Xcode/UIKit baseline plan."
+    else:
+        summary = "Repository analysis is complete; this project shape remains plan-only."
     verification = verification_steps_for(scenario)
 
     goal_supported_level = infer_goal_supported_level(
@@ -856,6 +957,7 @@ def infer_goal_supported_level(
             or profile.has_cocoapods
             or (profile.xcode_workspaces and not profile.xcode_projects)
             or (profile.xcode_projects and not profile.app_targets)
+            or mode != "xcode-adopt"
         ):
             return "unsupported-without-new-migration-tooling"
         return "apply-ready"
@@ -1116,6 +1218,14 @@ NEXT_ACTIONS_BY_SCENARIO: dict[str, tuple[str, ...]] = {
         "Treat this as a SwiftPM package analysis, not UIKit starter adoption.",
         "Identify whether the package is an app, library, command-line tool, or macOS package before proposing changes.",
         "Preserve Package.swift and existing scripts by default.",
+    ),
+    "xcode-appkit-guided-decision": (
+        "Preserve the AppKit lifecycle and existing Xcode project as the source of truth.",
+        "Use this report as read-only input; Modern.UIKit automated apply is unavailable.",
+    ),
+    "xcode-project-guided-decision": (
+        "Confirm the main app target and UI lifecycle before proposing UIKit adoption.",
+        "Use this report as discovery only until product ownership is explicit.",
     ),
 }
 
@@ -1455,6 +1565,7 @@ def format_text(profile: RepositoryProfile, plan: AdoptionPlan) -> str:
         f"- Swift package: {'yes' if profile.has_swift_package else 'no'}",
         f"- SwiftUI entry: {'yes' if profile.has_swiftui_entry else 'no'}",
         f"- UIKit lifecycle: {'yes' if profile.has_uikit_lifecycle else 'no'}",
+        f"- AppKit lifecycle: {'yes' if profile.has_appkit_lifecycle else 'no'}",
         f"- App targets: {', '.join(profile.app_targets) or '(none)'}",
         f"- Test targets: {', '.join(profile.test_targets) or '(none)'}",
         f"- Bundle identifiers: {', '.join(profile.bundle_identifiers) or '(none)'}",

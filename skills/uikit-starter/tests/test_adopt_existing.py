@@ -52,7 +52,16 @@ def make_ready_xcode_fixture(repo_root: Path) -> None:
     project_dir.mkdir()
     write(
         project_dir / "project.pbxproj",
-        "F829D09D2E252176005A7D1A /* FixtureTests */ = {isa = PBXNativeTarget; };\n",
+        """
+F829D09D2E252176005A7D19 /* Fixture */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.application";
+};
+F829D09D2E252176005A7D1A /* FixtureTests */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.bundle.unit-test";
+};
+""",
     )
     write(repo_root / "Fixture" / "Resources" / "Info.plist", "<plist />")
     write(
@@ -91,6 +100,130 @@ class AnalyzeRepositoryTests(unittest.TestCase):
         self.assertTrue(any("--apply" in action for action in plan.recommended_next_actions))
         self.assertEqual(profile.app_targets, ["Fixture"])
         self.assertEqual(profile.bundle_identifiers, ["com.example.fixture"])
+
+    def test_pbxproj_metadata_distinguishes_targets_without_info_plist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(
+                repo_root / "Fixture.xcodeproj" / "project.pbxproj",
+                """
+AA0000000000000000000001 /* Fixture */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.application";
+};
+AA0000000000000000000002 /* FixtureTests */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.bundle.unit-test";
+};
+AA0000000000000000000003 /* FixtureWidget */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.app-extension";
+};
+AA0000000000000000000004 /* FixtureFramework */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.framework";
+};
+AA0000000000000000000005 /* FixtureResources */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.bundle";
+};
+""",
+            )
+            write(
+                repo_root / "Fixture" / "AppDelegate.swift",
+                "import UIKit\nfinal class AppDelegate: UIResponder, UIApplicationDelegate {}\n",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(profile.app_targets, ["Fixture"])
+        self.assertEqual(profile.test_targets, ["FixtureTests"])
+        self.assertEqual(plan.scenario, "xcode-uikit-baseline-adoption")
+        self.assertTrue(plan.can_apply)
+
+    def test_extension_metadata_overrides_info_plist_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(
+                repo_root / "Extensions.xcodeproj" / "project.pbxproj",
+                """
+AA0000000000000000000001 /* Widget */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.app-extension";
+};
+""",
+            )
+            write(repo_root / "Widget" / "Resources" / "Info.plist", "<plist />")
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertEqual(profile.app_targets, [])
+        self.assertEqual(plan.scenario, "xcode-project-guided-decision")
+        self.assertFalse(plan.can_apply)
+
+    def test_appkit_project_and_generated_dependencies_are_read_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo_root = Path(tmp)
+            write(
+                repo_root / "Mitori.xcodeproj" / "project.pbxproj",
+                """
+AA0000000000000000000017 /* Dependency in Frameworks */ = {
+    isa = PBXBuildFile;
+};
+AA0000000000000000000001 /* Mitori */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.application";
+};
+AA0000000000000000000002 /* MitoriTests */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.bundle.unit-test";
+};
+PRODUCT_BUNDLE_IDENTIFIER = dev.zach.mitori;
+""",
+            )
+            write(
+                repo_root / "Mitori" / "App" / "MitoriMain.swift",
+                "import AppKit\nlet application = NSApplication.shared\n",
+            )
+            write(
+                repo_root
+                / ".xcodebuild"
+                / "SourcePackages"
+                / "checkouts"
+                / "Dependency"
+                / "Dependency.xcodeproj"
+                / "project.pbxproj",
+                """
+AA0000000000000000000003 /* Dependency */ = {
+    isa = PBXNativeTarget;
+    productType = "com.apple.product-type.application";
+};
+PRODUCT_BUNDLE_IDENTIFIER = com.example.dependency;
+""",
+            )
+            commit_all(repo_root)
+
+            profile = adopt_existing.analyze_repository(repo_root)
+            plan = adopt_existing.build_plan(profile)
+
+        self.assertTrue(profile.has_appkit_lifecycle)
+        self.assertEqual(profile.app_targets, ["Mitori"])
+        self.assertEqual(profile.test_targets, ["MitoriTests"])
+        self.assertEqual(profile.nested_xcode_projects, [])
+        self.assertEqual(profile.bundle_identifiers, ["dev.zach.mitori"])
+        self.assertEqual(plan.scenario, "xcode-appkit-guided-decision")
+        self.assertEqual(plan.status, "ready")
+        self.assertEqual(plan.goal_supported_level, "plan-only")
+        self.assertFalse(plan.can_apply)
+        self.assertFalse(plan.can_dry_run)
+        self.assertEqual(plan.recommended_questions, [])
+        self.assertFalse(
+            any("Modern.UIKit Configuration" in change for change in plan.proposed_changes)
+        )
 
     def test_dirty_worktree_blocks_adoption(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

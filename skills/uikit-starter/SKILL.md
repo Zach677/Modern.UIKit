@@ -64,6 +64,8 @@ Backend output contract:
 ## Scenario Guidance
 
 - `xcode-uikit-baseline-adoption`: if the user wants adoption, preview then apply the additive baseline.
+- `xcode-appkit-guided-decision`: preserve the AppKit lifecycle and keep Modern.UIKit adoption read-only.
+- `xcode-project-guided-decision`: identify the main app target and UI lifecycle before proposing UIKit adoption.
 - `xcode-swiftui-entry-migration`: clarify whether UIKit is the new architecture direction before changing app entry code.
 - `tuist-source-preserving-baseline`: keep Tuist as source of truth and port compatible ideas into existing commands.
 - `tuist-swiftui-guided-decision`: respect SwiftUI-first and Tuist-source repo guidance until the user explicitly overrides it.
