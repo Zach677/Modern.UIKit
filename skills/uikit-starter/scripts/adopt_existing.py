@@ -748,14 +748,14 @@ SCENARIO_RULES: tuple[ScenarioRule, ...] = (
         scenario="cocoapods-workspace-guided-decision",
     ),
     ScenarioRule(
-        when=lambda p, intent: bool(p.xcode_workspaces and not p.xcode_projects),
-        mode="workspace-preserving-assisted",
-        scenario="workspace-only-guided-decision",
-    ),
-    ScenarioRule(
         when=lambda p, intent: is_swiftpm_nested_app_shape(p),
         mode="swiftpm-app-assisted",
         scenario="swiftpm-nested-app-guided-decision",
+    ),
+    ScenarioRule(
+        when=lambda p, intent: bool(p.xcode_workspaces and not p.xcode_projects),
+        mode="workspace-preserving-assisted",
+        scenario="workspace-only-guided-decision",
     ),
     ScenarioRule(
         when=lambda p, intent: bool(p.has_swift_package and not p.xcode_projects),

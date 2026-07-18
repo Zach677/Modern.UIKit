@@ -89,7 +89,7 @@ Current phase: **stable template, adoption tooling in preview**.
 - [x] Planning mode for common SwiftUI, Tuist, CocoaPods, workspace-only, and SwiftPM repo shapes.
 - [x] CI with log-aware build/test, localization, and tooling test gates.
 - [x] Strengthen app target detection beyond Info.plist paths ([#3](https://github.com/Zach677/Modern.UIKit/issues/3)).
-- [ ] Broaden real repo smoke coverage ([#1](https://github.com/Zach677/Modern.UIKit/issues/1)).
+- [x] Broaden real repo smoke coverage ([#1](https://github.com/Zach677/Modern.UIKit/issues/1)).
 - [x] Improve source-of-truth detection for XcodeGen, Fastlane, and script entrypoints ([#2](https://github.com/Zach677/Modern.UIKit/issues/2)).
 
 Migration tooling ([#4](https://github.com/Zach677/Modern.UIKit/issues/4)) is

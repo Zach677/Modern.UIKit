@@ -571,6 +571,10 @@ struct FixtureApp: App {
         with tempfile.TemporaryDirectory() as tmp:
             repo_root = Path(tmp)
             write(repo_root / "Package.swift", "// swift-tools-version: 5.10\n")
+            write(
+                repo_root / "Fixture.xcworkspace" / "contents.xcworkspacedata",
+                "<Workspace version=\"1.0\"></Workspace>\n",
+            )
             (repo_root / "App" / "iOS" / "Fixture.xcodeproj").mkdir(parents=True)
             write(
                 repo_root / "App" / "iOS" / "Fixture" / "FixtureApp.swift",
@@ -583,8 +587,10 @@ struct FixtureApp: App {
 
         self.assertEqual(profile.xcode_projects, [])
         self.assertEqual(profile.nested_xcode_projects, ["App/iOS/Fixture.xcodeproj"])
+        self.assertEqual(profile.xcode_workspaces, ["Fixture.xcworkspace"])
         self.assertEqual(plan.mode, "swiftpm-app-assisted")
         self.assertEqual(plan.scenario, "swiftpm-nested-app-guided-decision")
+        self.assertEqual(plan.source_of_truth, "swift-package-with-nested-app-project")
         self.assertEqual(plan.status, "needs-confirmation")
         self.assertTrue(
             any("nested iOS app project" in action for action in plan.recommended_next_actions)
