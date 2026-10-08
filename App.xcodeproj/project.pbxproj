@@ -6,28 +6,32 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		F829D0B32E252176005A7D1A /* Core in Frameworks */ = {isa = PBXBuildFile; productRef = F829D0B22E252176005A7D1A /* Core */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		F829D09B2E252176005A7D1A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = F829D0792E252173005A7D1A /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = F829D0802E252173005A7D1A;
-			remoteInfo = "ModernUIKit";
+			remoteInfo = "App";
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		F829D0812E252173005A7D1A /* ModernUIKit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ModernUIKit.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F829D09A2E252176005A7D1A /* ModernUIKitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ModernUIKitTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F829D0812E252173005A7D1A /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F829D09A2E252176005A7D1A /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		F829D0932E252174005A7D1A /* Exceptions for "ModernUIKit" folder in "ModernUIKit" target */ = {
+		F829D0932E252174005A7D1A /* Exceptions for "App" folder in "App" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Resources/Info.plist,
 			);
-			target = F829D0802E252173005A7D1A /* ModernUIKit */;
+			target = F829D0802E252173005A7D1A /* App */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -37,17 +41,17 @@
 			path = Configuration;
 			sourceTree = "<group>";
 		};
-		F829D09C2E252176005A7D1A /* ModernUIKitTests */ = {
+		F829D09C2E252176005A7D1A /* AppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "ModernUIKitTests";
+			path = "AppTests";
 			sourceTree = "<group>";
 		};
-		F829D0832E252173005A7D1A /* ModernUIKit */ = {
+		F829D0832E252173005A7D1A /* App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				F829D0932E252174005A7D1A /* Exceptions for "ModernUIKit" folder in "ModernUIKit" target */,
+				F829D0932E252174005A7D1A /* Exceptions for "App" folder in "App" target */,
 			);
-			path = "ModernUIKit";
+			path = "App";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -64,6 +68,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F829D0B32E252176005A7D1A /* Core in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,8 +79,8 @@
 			isa = PBXGroup;
 			children = (
 				F829D0992E252175005A7D1A /* Configuration */,
-				F829D0832E252173005A7D1A /* ModernUIKit */,
-				F829D09C2E252176005A7D1A /* ModernUIKitTests */,
+				F829D0832E252173005A7D1A /* App */,
+				F829D09C2E252176005A7D1A /* AppTests */,
 				F829D0822E252173005A7D1A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -83,8 +88,8 @@
 		F829D0822E252173005A7D1A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F829D0812E252173005A7D1A /* ModernUIKit.app */,
-				F829D09A2E252176005A7D1A /* ModernUIKitTests.xctest */,
+				F829D0812E252173005A7D1A /* App.app */,
+				F829D09A2E252176005A7D1A /* AppTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -92,9 +97,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		F829D09D2E252176005A7D1A /* ModernUIKitTests */ = {
+		F829D09D2E252176005A7D1A /* AppTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F829D0A42E252176005A7D1A /* Build configuration list for PBXNativeTarget "ModernUIKitTests" */;
+			buildConfigurationList = F829D0A42E252176005A7D1A /* Build configuration list for PBXNativeTarget "AppTests" */;
 			buildPhases = (
 				F829D09E2E252176005A7D1A /* Sources */,
 				F829D09F2E252176005A7D1A /* Frameworks */,
@@ -106,18 +111,18 @@
 				F829D0A12E252176005A7D1A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				F829D09C2E252176005A7D1A /* ModernUIKitTests */,
+				F829D09C2E252176005A7D1A /* AppTests */,
 			);
-			name = "ModernUIKitTests";
+			name = "AppTests";
 			packageProductDependencies = (
 			);
-			productName = "ModernUIKitTests";
-			productReference = F829D09A2E252176005A7D1A /* ModernUIKitTests.xctest */;
+			productName = "AppTests";
+			productReference = F829D09A2E252176005A7D1A /* AppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		F829D0802E252173005A7D1A /* ModernUIKit */ = {
+		F829D0802E252173005A7D1A /* App */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F829D0942E252174005A7D1A /* Build configuration list for PBXNativeTarget "ModernUIKit" */;
+			buildConfigurationList = F829D0942E252174005A7D1A /* Build configuration list for PBXNativeTarget "App" */;
 			buildPhases = (
 				F829D07D2E252173005A7D1A /* Sources */,
 				F829D07E2E252173005A7D1A /* Frameworks */,
@@ -128,13 +133,14 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				F829D0832E252173005A7D1A /* ModernUIKit */,
+				F829D0832E252173005A7D1A /* App */,
 			);
-			name = "ModernUIKit";
+			name = "App";
 			packageProductDependencies = (
+				F829D0B22E252176005A7D1A /* Core */,
 			);
-			productName = "ModernUIKit";
-			productReference = F829D0812E252173005A7D1A /* ModernUIKit.app */;
+			productName = "App";
+			productReference = F829D0812E252173005A7D1A /* App.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -156,7 +162,7 @@
 					};
 				};
 			};
-			buildConfigurationList = F829D07C2E252173005A7D1A /* Build configuration list for PBXProject "ModernUIKit" */;
+			buildConfigurationList = F829D07C2E252173005A7D1A /* Build configuration list for PBXProject "App" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -165,13 +171,16 @@
 			);
 			mainGroup = F829D0782E252173005A7D1A;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				F829D0B12E252176005A7D1A /* XCLocalSwiftPackageReference "Packages/Core" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F829D0822E252173005A7D1A /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				F829D09D2E252176005A7D1A /* ModernUIKitTests */,
-				F829D0802E252173005A7D1A /* ModernUIKit */,
+				F829D09D2E252176005A7D1A /* AppTests */,
+				F829D0802E252173005A7D1A /* App */,
 			);
 		};
 /* End PBXProject section */
@@ -213,7 +222,7 @@
 /* Begin PBXTargetDependency section */
 		F829D0A12E252176005A7D1A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = F829D0802E252173005A7D1A /* ModernUIKit */;
+			target = F829D0802E252173005A7D1A /* App */;
 			targetProxy = F829D09B2E252176005A7D1A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -225,17 +234,18 @@
 			baseConfigurationReferenceRelativePath = Development.xcconfig;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.example.$(PRODUCT_NAME:rfc1034identifier)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_IDENTIFIER).tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ModernUIKit.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ModernUIKit";
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/App";
 			};
 			name = Debug;
 		};
@@ -245,17 +255,18 @@
 			baseConfigurationReferenceRelativePath = Release.xcconfig;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.example.$(PRODUCT_NAME:rfc1034identifier)";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_IDENTIFIER).tests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ModernUIKit.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ModernUIKit";
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/App";
 			};
 			name = Release;
 		};
@@ -266,21 +277,25 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				INFOPLIST_FILE = ModernUIKit/Resources/Info.plist;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = App/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = "";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -291,21 +306,25 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				INFOPLIST_FILE = ModernUIKit/Resources/Info.plist;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = App/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = "";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -433,7 +452,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		F829D07C2E252173005A7D1A /* Build configuration list for PBXProject "ModernUIKit" */ = {
+		F829D07C2E252173005A7D1A /* Build configuration list for PBXProject "App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F829D0972E252174005A7D1A /* Debug */,
@@ -442,7 +461,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F829D0942E252174005A7D1A /* Build configuration list for PBXNativeTarget "ModernUIKit" */ = {
+		F829D0942E252174005A7D1A /* Build configuration list for PBXNativeTarget "App" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F829D0952E252174005A7D1A /* Debug */,
@@ -451,7 +470,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F829D0A42E252176005A7D1A /* Build configuration list for PBXNativeTarget "ModernUIKitTests" */ = {
+		F829D0A42E252176005A7D1A /* Build configuration list for PBXNativeTarget "AppTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				F829D0A22E252176005A7D1A /* Debug */,
@@ -461,6 +480,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		F829D0B12E252176005A7D1A /* XCLocalSwiftPackageReference "Packages/Core" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/Core;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F829D0B22E252176005A7D1A /* Core */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Core;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F829D0792E252173005A7D1A /* Project object */;
 }

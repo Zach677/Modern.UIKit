@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tidy the Xcode workspace scheme list for ModernUIKit."""
+"""Tidy the Xcode workspace scheme list for App."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-WORKSPACE = REPO_ROOT / "ModernUIKit.xcworkspace"
-PINNED_ORDER = ["ModernUIKit"]
+WORKSPACE = REPO_ROOT / "App.xcworkspace"
+PINNED_ORDER = ["App"]
 
 
 def list_schemes() -> list[str]:
@@ -43,9 +43,9 @@ def list_schemes() -> list[str]:
 def sort_schemes(schemes: list[str]) -> list[str]:
     pinned = [name for name in PINNED_ORDER if name in schemes]
     modern_rest = sorted(
-        name for name in schemes if name.startswith("ModernUIKit") and name not in pinned
+        name for name in schemes if name.startswith("App") and name not in pinned
     )
-    others = sorted(name for name in schemes if not name.startswith("ModernUIKit"))
+    others = sorted(name for name in schemes if not name.startswith("App"))
     return pinned + modern_rest + others
 
 
@@ -54,7 +54,7 @@ def build_plist(ordered: list[str]) -> dict:
     for index, name in enumerate(ordered):
         key = f"{name}.xcscheme"
         scheme_state[key] = {
-            "isShown": name.startswith("ModernUIKit"),
+            "isShown": name.startswith("App"),
             "orderHint": index,
         }
     return {"SchemeUserState": scheme_state}
@@ -81,8 +81,8 @@ def main() -> int:
     with target.open("wb") as handle:
         plistlib.dump(plist_payload, handle)
 
-    hidden = [name for name in ordered if not name.startswith("ModernUIKit")]
-    shown = [name for name in ordered if name.startswith("ModernUIKit")]
+    hidden = [name for name in ordered if not name.startswith("App")]
+    shown = [name for name in ordered if name.startswith("App")]
     print(f"Wrote {target.relative_to(REPO_ROOT)}")
     print(f"  Shown ({len(shown)}): {', '.join(shown)}")
     if hidden:

@@ -38,7 +38,7 @@ Swift 6.0 is the default language mode. Fresh projects can opt into Swift 5.0 wh
 
 ## Development
 
-Open `ModernUIKit.xcworkspace`, or use:
+Open `App.xcworkspace`, or use:
 
 ```bash
 mise tasks

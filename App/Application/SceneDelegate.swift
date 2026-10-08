@@ -11,9 +11,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     ) {
         guard let windowScene = scene as? UIWindowScene else { return }
 
-        let preferences = AppPreferences.bootstrap()
-        let rootViewController = RootViewController(preferences: preferences)
-        let navigationController = UINavigationController(rootViewController: rootViewController)
+        let navigationController = UINavigationController(rootViewController: RootViewController())
         let window = UIWindow(windowScene: windowScene)
         window.tintColor = .systemBlue
         window.rootViewController = navigationController

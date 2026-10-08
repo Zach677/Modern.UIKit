@@ -14,9 +14,9 @@
   "testTargets" : [
     {
       "target" : {
-        "containerPath" : "container:ModernUIKit.xcodeproj",
+        "containerPath" : "container:App.xcodeproj",
         "identifier" : "F829D09D2E252176005A7D1A",
-        "name" : "ModernUIKitTests"
+        "name" : "AppTests"
       }
     }
   ],

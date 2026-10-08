@@ -6,7 +6,7 @@ while [[ ! -d .git ]] && [[ "$(pwd)" != "/" ]]; do
     cd ..
 done
 
-if [[ -d .git ]] && [[ -d ModernUIKit.xcworkspace ]]; then
+if [[ -d .git ]] && [[ -d App.xcworkspace ]]; then
     echo "[*] found project root: $(pwd)"
 else
     echo "[!] could not find project root"
@@ -43,7 +43,7 @@ echo "[*] resolving packages..."
 rm -rf "$PACKAGE_CLONE_ROOT"
 mkdir -p "$PACKAGE_CLONE_ROOT"
 
-RESOLVE_SCHEMES=("ModernUIKit")
+RESOLVE_SCHEMES=("App")
 
 for scheme in "${RESOLVE_SCHEMES[@]}"; do
     echo "[*] resolving scheme: $scheme"
@@ -72,7 +72,7 @@ declare -A MANUAL_LICENSE_OVERRIDES
 
 # Build package name mapping from Package.resolved
 declare -A PACKAGE_NAME_MAP
-PACKAGE_RESOLVED="${PROJECT_ROOT}/ModernUIKit.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+PACKAGE_RESOLVED="${PROJECT_ROOT}/App.xcworkspace/xcshareddata/swiftpm/Package.resolved"
 
 # When a package's GitHub repo name does not match its desired display name,
 # add a map here and prefer it over $repo_name in the loop below, for example:
@@ -178,7 +178,7 @@ if [[ ${#MANUAL_LICENSE_OVERRIDES[@]} -gt 0 ]]; then
 fi
 
 LICENSE_OUTPUTS=(
-    "$PROJECT_ROOT/ModernUIKit/Resources/OpenSourceLicenses.md"
+    "$PROJECT_ROOT/App/Resources/OpenSourceLicenses.md"
 )
 
 for output_path in "${LICENSE_OUTPUTS[@]}"; do

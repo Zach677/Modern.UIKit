@@ -3,7 +3,7 @@
 ## App Shape
 
 - This is a pure UIKit iOS starter with programmatic setup.
-- Keep the entry path as `ModernUIKit/Application/main.swift` -> `AppDelegate.swift` -> `SceneDelegate.swift`.
+- Keep the entry path as `App/Application/main.swift` -> `AppDelegate.swift` -> `SceneDelegate.swift`.
 - `SceneDelegate` owns window creation, bootstraps the shared `AppPreferences`, and installs the root navigation shell.
 - `Interface/Root/RootViewController.swift` is the first screen and the seed of the future app shell.
 - Do not introduce SwiftUI into the starter by default. If a real project later chooses SwiftUI, that should be an explicit project decision rather than template drift.
@@ -13,8 +13,8 @@
 
 ### Top Level
 
-- `ModernUIKit/` contains the app target source and resources.
-- `ModernUIKit.xcworkspace/` is the default Xcode entrypoint for the repository.
+- `App/` contains the app target source and resources.
+- `App.xcworkspace/` is the default Xcode entrypoint for the repository.
 - `Configuration/` contains shared Xcode build configuration files (`Base.xcconfig`, `Development.xcconfig`, `Release.xcconfig`, `Version.xcconfig`) used by the app target.
 - `Resources/DevKit/scripts/` contains reusable maintenance scripts for build/test log handling, scheme tidying, xcstrings hygiene, and license scanning.
 - `mise.toml` is the default task entrypoint for local build workflows.
@@ -23,7 +23,7 @@
 - `CONTRIBUTING.md`, `AI_POLICY.md`, and `HACKING.md` define the public contribution process, AI usage policy, and developer guide entrypoint.
 - `.github/` contains discussion-first community templates, the vouch automation workflows for contributor trust management, and the CI workflow that builds the app and runs the test gates on every push and pull request.
 - `.agents/` contains optional agent-facing commands and skills that mirror project workflow preferences for compatible agent runtimes.
-- `ModernUIKitTests/` contains the hosted unit tests for the app target.
+- `AppTests/` contains the hosted unit tests for the app target.
 
 ### Application Layer
 
@@ -40,20 +40,20 @@
 
 ### Backend Layer
 
-- If the starter grows into a real app, create a top-level `Backend/` folder inside `ModernUIKit/` for domain services, persistence, API clients, state ownership, and cross-feature runtime logic.
+- If the starter grows into a real app, create a top-level `Backend/` folder inside `App/` for domain services, persistence, API clients, state ownership, and cross-feature runtime logic.
 - Keep UI state rendering in `Interface/`, but keep state ownership in `Backend/`.
 
 ### Resources Layer
 
-- `ModernUIKit/Resources/` contains app-bundled resources that ship with the target, such as `Assets.xcassets`, `Info.plist`, `LaunchScreen.storyboard`, `Localizable.xcstrings`, and `OpenSourceLicenses.md`.
+- `App/Resources/` contains app-bundled resources that ship with the target, such as `Assets.xcassets`, `Info.plist`, `LaunchScreen.storyboard`, `Localizable.xcstrings`, and `OpenSourceLicenses.md`.
 - `Resources/DevKit/scripts/` contains repository maintenance scripts that support the build/test workflow, localization hygiene, workspace management, and license aggregation.
 - `Resources/AdditionalLicenses/` contains manually curated upstream license files that should override or supplement scanned dependency licenses when needed.
 
 ### Test Layer
 
-- `ModernUIKitTests/` contains the app-level hosted tests for the main target.
-- Organize tests by feature or subdomain under `ModernUIKitTests/`, for example `Application/` today and one folder per future feature area.
-- Shared testing helpers should live in `ModernUIKitTests/TestSupport.swift` or `ModernUIKitTests/TestSupport/` once the helper surface justifies it.
+- `AppTests/` contains the app-level hosted tests for the main target.
+- Organize tests by feature or subdomain under `AppTests/`, for example `Application/` today and one folder per future feature area.
+- Shared testing helpers should live in `AppTests/TestSupport.swift` or `AppTests/TestSupport/` once the helper surface justifies it.
 
 ## Placement Guide
 
@@ -63,7 +63,7 @@
 - New app services should live under the closest future `Backend/*` subdomain, not directly inside view controllers.
 - Shared UI goes into `Interface/Common/` only when it is clearly cross-feature infrastructure.
 - If a UI type is only used by one feature, keep it inside that feature folder even if it looks reusable.
-- New resource files that ship in the app belong under `ModernUIKit/Resources/`, not under the repo-root `Resources/` folder.
+- New resource files that ship in the app belong under `App/Resources/`, not under the repo-root `Resources/` folder.
 - New maintenance scripts belong under `Resources/DevKit/scripts/` and should be exposed through `mise.toml` if they become part of the normal workflow.
 - New manual license texts belong under `Resources/AdditionalLicenses/<PackageName>/LICENSE` or `COPYING`.
 - New tests should mirror the app’s folder boundaries where practical, so the test tree stays readable as the app grows.
@@ -80,15 +80,15 @@
 
 ## Workspace Rules
 
-- Treat `ModernUIKit.xcworkspace/` as the default Xcode entrypoint for day-to-day work.
-- Keep `ModernUIKit.xctestplan` attached to the shared `ModernUIKit` scheme.
+- Treat `App.xcworkspace/` as the default Xcode entrypoint for day-to-day work.
+- Keep `App.xctestplan` attached to the shared `App` scheme.
 - If the repository gains local packages or vendor packages, add them to the workspace explicitly so Xcode can surface them in the project navigator and Tests UI.
 - Keep workspace and on-disk naming aligned with the template’s current base name.
 
 ## UIKit File Rules
 
 - Keep `main.swift` as the entry point. Do not switch the starter to `@main`.
-- No `Main.storyboard`; keep only `LaunchScreen.storyboard` under `ModernUIKit/Resources/`.
+- No `Main.storyboard`; keep only `LaunchScreen.storyboard` under `App/Resources/`.
 - Keep Xcode groups aligned with on-disk folders.
 - Keep the first app shell under `Interface/Root/` rather than embedding root composition in `SceneDelegate`.
 - Split large controllers by responsibility using focused extensions such as `+Layout`, `+Actions`, `+Table`, or `+State` when the app grows.
@@ -128,7 +128,7 @@
 
 - All user-facing strings in the app target use `String(localized:)`.
 - Catalog keys are the natural English sentence, and the `en` value mirrors the key; `mise strip-xcstrings` enforces the mirroring. Do not use dot-namespaced identifier keys.
-- Every target that contains user-facing strings must keep them in a `Localizable.xcstrings` under its `Resources/` directory, currently `ModernUIKit/Resources/Localizable.xcstrings`.
+- Every target that contains user-facing strings must keep them in a `Localizable.xcstrings` under its `Resources/` directory, currently `App/Resources/Localizable.xcstrings`.
 - When adding or modifying any localized key, update the corresponding `.xcstrings` file in the same change.
 - Each key should include complete localizations for the locales already used by the catalog. For the starter catalog, keep `en` and `zh-Hans` entries complete and preserve positional format specifiers such as `%1$@` or `%2$lld`.
 - Do not leave empty entries, untranslated keys, or orphaned keys in checked-in `.xcstrings` files.
@@ -184,7 +184,7 @@
 - `mise build-ios` only compiles the app target. To verify test file changes, use `mise test`.
 - `Resources/DevKit/scripts/run_xcodebuild.sh` is the expected execution path for build and test commands because it validates the log output, not just the shell exit code.
 - `scan.license.sh`, `strip_stale_xcstrings.py`, `validate_xcstrings.py`, and `tidy_workspace_schemes.py` are part of the repository contract, not optional side scripts.
-- `ModernUIKit.xcworkspace` is the expected Xcode entrypoint for interactive work. Do not silently drift back to a project-only workflow.
+- `App.xcworkspace` is the expected Xcode entrypoint for interactive work. Do not silently drift back to a project-only workflow.
 - Package resolution and license refresh use `mise package-resolve` or `mise scan-license`.
 - Release flows that refresh licenses against an intentionally dirty tree must pass `dirty=1`, for example `mise package-resolve -- dirty=1`; this is forwarded by the mise task as `ALLOW_DIRTY=1` to the scan script.
 - Keep `.gitattributes` Linguist exclusions scoped to repository tooling and automation surfaces. Do not exclude app target source or Swift tests from language statistics.
@@ -220,7 +220,7 @@ lookinside --help
 
 - The starter ships with a minimal hosted unit test target.
 - The project has a Mac Catalyst destination. Tests can be built and run on Catalyst in addition to iOS simulators.
-- `ModernUIKit.xctestplan` is part of the template contract; keep the shared scheme attached to it so Xcode's Tests UI stays useful from day one.
+- `App.xctestplan` is part of the template contract; keep the shared scheme attached to it so Xcode's Tests UI stays useful from day one.
 - Prefer Swift Testing for new starter tests unless a concrete XCTest-only need exists.
 - Organize tests by feature or subdomain (`Application/` today, one folder per future feature area) instead of letting test files pile up at the target root.
 - New tests should cover app behavior and dependency wiring before drifting into brittle presentation assertions.

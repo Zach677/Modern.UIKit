@@ -1,5 +1,8 @@
 #include "Version.xcconfig"
 
+// App identity. A new project changes only these values.
+APP_DISPLAY_NAME = Modern.UIKit
+APP_BUNDLE_IDENTIFIER = com.example.modernuikit
 DEVELOPMENT_TEAM =
 
 CODE_SIGN_STYLE = Automatic
@@ -7,5 +10,5 @@ CODE_SIGN_IDENTITY = Apple Development
 CODE_SIGNING_ALLOWED = YES
 CODE_SIGNING_REQUIRED = YES
 CODE_SIGNING_SUPPORTED = YES
-PRODUCT_BUNDLE_IDENTIFIER = com.example.$(PRODUCT_NAME:rfc1034identifier)
+PRODUCT_BUNDLE_IDENTIFIER = $(APP_BUNDLE_IDENTIFIER)
 PROVISIONING_PROFILE_SPECIFIER =
