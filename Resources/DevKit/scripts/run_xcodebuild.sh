@@ -78,11 +78,13 @@ else
     cat "$LOG"
 fi
 
-ERR_RE='(^|[[:space:]])error:|^\*\* (BUILD|TEST|ARCHIVE|CLEAN|ANALYZE) FAILED \*\*|^Testing failed:|^Failing tests:'
-IGNORED_ERR_RE='connection to service named com\.apple\.linkd\.autoShortcut|\[Connection\] Unable to (get synchronousRemoteObjectProxy|re-register with Process Instance Registry), error:'
+# Match only lines that xcodebuild or the compiler emit: diagnostics start with a
+# source path or "error:", and summaries start with "**". The test host process
+# also writes to this log, and its system logs can contain "error:" mid-line.
+ERR_RE='^(/[^:]+:[0-9]+:([0-9]+:)? |xcodebuild: )?error:|^\*\* (BUILD|TEST|ARCHIVE|CLEAN|ANALYZE) FAILED \*\*|^Testing failed:|^Failing tests:'
 
 FOUND_ERRORS=0
-ERROR_LINES=$(grep -En "$ERR_RE" "$LOG" | grep -Ev "$IGNORED_ERR_RE" || true)
+ERROR_LINES=$(grep -En "$ERR_RE" "$LOG" || true)
 if [ -n "$ERROR_LINES" ]; then
     FOUND_ERRORS=1
 fi
