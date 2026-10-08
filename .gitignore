@@ -93,3 +93,4 @@ __pycache__/
 *.pyc
 
 # End of https://www.toptal.com/developers/gitignore/api/swift
+.swiftpm/
