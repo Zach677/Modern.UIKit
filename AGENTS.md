@@ -24,7 +24,6 @@
 - `.github/` contains discussion-first community templates, the vouch automation workflows for contributor trust management, and the CI workflow that builds the app and runs the test gates on every push and pull request.
 - `.agents/` contains optional agent-facing commands and skills that mirror project workflow preferences for compatible agent runtimes.
 - `ModernUIKitTests/` contains the hosted unit tests for the app target.
-- `skills/uikit-starter/scripts/adopt_existing.py` is the read-only inspection and planning entry point for adopting this starter into an existing iOS repository.
 
 ### Application Layer
 
@@ -188,12 +187,6 @@
 - `ModernUIKit.xcworkspace` is the expected Xcode entrypoint for interactive work. Do not silently drift back to a project-only workflow.
 - Package resolution and license refresh use `mise package-resolve` or `mise scan-license`.
 - Release flows that refresh licenses against an intentionally dirty tree must pass `dirty=1`, for example `mise package-resolve -- dirty=1`; this is forwarded by the mise task as `ALLOW_DIRTY=1` to the scan script.
-- Existing-repo adoption starts with `python3 skills/uikit-starter/scripts/adopt_existing.py --repo-path <repo>`. Treat its output as the agent-facing decision plan; ask only the blocking questions it surfaces and preserve existing repo identity by default. Use `--apply` only for `Status: ready` / `Mode: xcode-adopt` plans; the first slice is additive and must not overwrite existing files.
-- Keep additive baseline completion for a clean, plain UIKit repo with one root Xcode project as the only write-enabled migration slice. Reject unsafe rendered identifiers and any apply target that resolves outside the repository; keep SwiftUI, Tuist, CocoaPods, SwiftPM, and AppKit migration plan-only.
-- Keep existing command surfaces plan-only until they are reconciled explicitly. Render adopted mise tasks from detected capabilities; include Mac Catalyst and test tasks only when the project already supports Catalyst and exposes a test target.
-- Before any adoption write, require the analyzed Git HEAD and repository profile to still match the reviewed plan. Create missing files exclusively through repository-anchored, no-follow writes; never overwrite an intervening file. Keep adopted DerivedData under the system temporary directory so verification does not pollute the target worktree.
-- Under `preserve-existing-workflow`, keep detected XcodeGen, Fastlane, mise, Make, and root `scripts/` validation entrypoints as the existing source of truth or command surface; translate compatible checks into them instead of proposing parallel mise or DevKit script workflows.
-- Classify package-first repositories with only nested Xcode projects as `swiftpm-nested-app-guided-decision` before the workspace-only fallback, even when the repository also has a root workspace.
 - Keep `.gitattributes` Linguist exclusions scoped to repository tooling and automation surfaces. Do not exclude app target source or Swift tests from language statistics.
 - Manually collected upstream license texts belong under `Resources/AdditionalLicenses/<PackageName>/LICENSE` or `COPYING`. The scanner prefers these files over bundled dependency licenses when both exist.
 - Format with `mise format` and check formatting with `mise format-lint`; submodules under `Vendor/` and build artifacts are excluded automatically.

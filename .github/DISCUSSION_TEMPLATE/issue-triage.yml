@@ -11,7 +11,7 @@ body:
       label: Description
       description: What is the behavior you're seeing and what did you expect?
       placeholder: |
-        Example: When I run 'adopt_existing.py --repo-path ...', it reports can_apply: true, but I expected a planning-only result.
+        Example: When I run 'mise test' in a new project, the task fails, but every test passes.
     validations:
       required: true
 

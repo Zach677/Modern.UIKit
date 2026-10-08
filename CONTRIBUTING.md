@@ -87,10 +87,9 @@ translator guide and link it here.
 
 ### I'd like to use Modern.UIKit with my project
 
-Start with the README and the `uikit-starter` skill. If you're unsure whether
-your repository can adopt Modern.UIKit safely, open a discussion rather than an
-issue. Existing repository adoption often needs planning before it becomes
-actionable work.
+Start with the README and the `uikit-starter` skill. Modern.UIKit creates new
+apps only. It does not migrate existing repositories. If you have a question
+about your setup, open a discussion rather than an issue.
 
 ### I have a bug! / Something isn't working
 
