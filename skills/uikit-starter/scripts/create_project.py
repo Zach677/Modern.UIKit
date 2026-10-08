@@ -43,11 +43,24 @@ def set_xcconfig_value(path: Path, key: str, value: str) -> None:
     path.write_text(pattern.sub(lambda _: f"{key} = {value}".rstrip(), text, count=1))
 
 
-def configure(repo_root: Path, display_name: str, bundle_id: str, team: str) -> None:
+def configure(
+    repo_root: Path,
+    workspace_name: str,
+    display_name: str,
+    bundle_id: str,
+    team: str,
+    iphone_only: bool = False,
+    mac_catalyst: bool = False,
+) -> None:
     base = repo_root / "Configuration" / "Base.xcconfig"
     set_xcconfig_value(base, "APP_DISPLAY_NAME", display_name)
     set_xcconfig_value(base, "APP_BUNDLE_IDENTIFIER", bundle_id)
     set_xcconfig_value(base, "DEVELOPMENT_TEAM", team)
+    set_xcconfig_value(base, "TARGETED_DEVICE_FAMILY", "1" if iphone_only else "1,2")
+    set_xcconfig_value(base, "SUPPORTS_MACCATALYST", "YES" if mac_catalyst else "NO")
+
+    (workspace,) = repo_root.glob("*.xcworkspace")
+    workspace.rename(repo_root / f"{workspace_name}.xcworkspace")
 
     for relative in TEMPLATE_ONLY_PATHS:
         path = repo_root / relative
@@ -60,7 +73,7 @@ def configure(repo_root: Path, display_name: str, bundle_id: str, team: str) -> 
         f"# {display_name}\n\n"
         "A programmatic UIKit app for iOS 26.\n\n"
         "## Development\n\n"
-        "Open `App.xcworkspace`, or use:\n\n"
+        f"Open `{workspace_name}.xcworkspace`, or use:\n\n"
         "```bash\n"
         "mise build\n"
         "mise test\n"
@@ -76,6 +89,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--display-name", help="Home screen name; defaults to the repo name")
     parser.add_argument("--bundle-id", required=True)
     parser.add_argument("--development-team", default="")
+    parser.add_argument("--iphone-only", action="store_true", help="Target iPhone only instead of iPhone and iPad")
+    parser.add_argument("--mac-catalyst", action="store_true", help="Enable Mac Catalyst")
     parser.add_argument("--template-repo", default=DEFAULT_TEMPLATE_REPO)
     parser.add_argument("--parent-dir", default=".")
     parser.add_argument("--visibility", choices=["private", "public"], default="private")
@@ -92,7 +107,15 @@ def main() -> int:
         raise SystemExit(f"Local destination already exists: {repo_root}")
 
     run(["gh", "repo", "create", args.repo, f"--{args.visibility}", "--template", args.template_repo, "--clone"], cwd=parent_dir)
-    configure(repo_root, args.display_name or repo_name, args.bundle_id, args.development_team.strip())
+    configure(
+        repo_root,
+        workspace_name=repo_name,
+        display_name=args.display_name or repo_name,
+        bundle_id=args.bundle_id,
+        team=args.development_team.strip(),
+        iphone_only=args.iphone_only,
+        mac_catalyst=args.mac_catalyst,
+    )
 
     if args.verify != "none":
         run(["mise", "trust", "mise.toml"], cwd=repo_root)

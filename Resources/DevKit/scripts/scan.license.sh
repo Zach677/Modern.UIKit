@@ -6,10 +6,12 @@ while [[ ! -d .git ]] && [[ "$(pwd)" != "/" ]]; do
     cd ..
 done
 
-if [[ -d .git ]] && [[ -d App.xcworkspace ]]; then
+WORKSPACES=(*.xcworkspace(N))
+if [[ -d .git ]] && (( ${#WORKSPACES} == 1 )); then
+    WORKSPACE=${WORKSPACES[1]}
     echo "[*] found project root: $(pwd)"
 else
-    echo "[!] could not find project root"
+    echo "[!] could not find a project root with exactly one .xcworkspace"
     exit 1
 fi
 
@@ -49,7 +51,7 @@ for scheme in "${RESOLVE_SCHEMES[@]}"; do
     echo "[*] resolving scheme: $scheme"
     with_retry xcodebuild -resolvePackageDependencies \
         -clonedSourcePackagesDirPath "$PACKAGE_CLONE_ROOT" \
-        -workspace *.xcworkspace \
+        -workspace "$WORKSPACE" \
         -scheme "$scheme" |
         xcbeautify --disable-colored-output --disable-logging
     resolve_status=${pipestatus[1]}
@@ -72,7 +74,7 @@ declare -A MANUAL_LICENSE_OVERRIDES
 
 # Build package name mapping from Package.resolved
 declare -A PACKAGE_NAME_MAP
-PACKAGE_RESOLVED="${PROJECT_ROOT}/App.xcworkspace/xcshareddata/swiftpm/Package.resolved"
+PACKAGE_RESOLVED="${PROJECT_ROOT}/${WORKSPACE}/xcshareddata/swiftpm/Package.resolved"
 
 # When a package's GitHub repo name does not match its desired display name,
 # add a map here and prefer it over $repo_name in the loop below, for example:

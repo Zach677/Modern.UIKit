@@ -1,6 +1,6 @@
 # Modern.UIKit
 
-> Agent-native, programmatic UIKit starter for iOS 26 iPhone apps.
+> Agent-native, programmatic UIKit starter for iOS 26 apps.
 
 ## Create a Project
 
@@ -12,14 +12,15 @@ npx skills add Zach677/Modern.UIKit --skill uikit-starter -g -y
 
 Then ask the agent:
 
-- `Use $uikit-starter to create a new private UIKit app repo named Mottai with bundle ID org.zaxh.Mottai.`
+- `Use $uikit-starter to create a new private UIKit app repo named Mottai with bundle ID org.zaxh.Mottai, iPhone only.`
 
-The skill creates a repository from this GitHub template and sets the app identity in `Configuration/Base.xcconfig`. The project, target, scheme, and workspace keep the fixed name `App`, so nothing else is renamed.
+The skill creates a repository from this GitHub template and sets the app identity in `Configuration/Base.xcconfig`. The project, target, and scheme keep the fixed name `App`. Only the workspace file takes the repository name.
 
 ## Starter
 
 - UIKit lifecycle through `main.swift`, `AppDelegate`, and `SceneDelegate`. No main storyboard.
-- iOS 26, iPhone only, Swift 6 with `MainActor` default isolation.
+- iOS 26, Swift 6 with `MainActor` default isolation.
+- iPhone and iPad by default. iPhone-only and Mac Catalyst are one-line switches in `Base.xcconfig`.
 - `Packages/Core` local package for UI-free logic, tested with `swift test` on macOS.
 - Hosted Swift Testing target, shared test plan, and an Xcode workspace.
 - Shared xcconfig files for identity, signing, and version.
@@ -27,7 +28,7 @@ The skill creates a repository from this GitHub template and sets the app identi
 
 ## Development
 
-Open `App.xcworkspace`, or use:
+Open `ModernUIKit.xcworkspace`, or use:
 
 ```bash
 mise tasks

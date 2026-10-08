@@ -10,16 +10,38 @@
 dir = "{{config_root}}"
 
 [tasks.build]
-description = "Build the app for iOS Simulator"
+description = "Build for iOS Simulator, and Mac Catalyst when enabled"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
 XCBUILD_LABEL=build ./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace App.xcworkspace \
+    -workspace "$(ls -d *.xcworkspace)" \
     -scheme App \
     -configuration "${CONFIGURATION:-Debug}" \
     -destination "generic/platform=iOS Simulator" \
+    CODE_SIGNING_ALLOWED=NO \
+    build
+if grep -q '^SUPPORTS_MACCATALYST = YES' Configuration/Base.xcconfig; then
+    mise run build-catalyst "$@"
+fi
+'''
+
+[tasks.build-catalyst]
+description = "Build the app for Mac Catalyst"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
+if ! grep -q '^SUPPORTS_MACCATALYST = YES' Configuration/Base.xcconfig; then
+    echo "Mac Catalyst is off. Set SUPPORTS_MACCATALYST = YES in Configuration/Base.xcconfig." >&2
+    exit 1
+fi
+XCBUILD_LABEL=build-catalyst ./Resources/DevKit/scripts/run_xcodebuild.sh \
+    -workspace "$(ls -d *.xcworkspace)" \
+    -scheme App \
+    -configuration "${CONFIGURATION:-Debug}" \
+    -destination "generic/platform=macOS,variant=Mac Catalyst" \
     CODE_SIGNING_ALLOWED=NO \
     build
 '''
@@ -31,7 +53,7 @@ run = '''
 set -euo pipefail
 for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
 XCBUILD_LABEL=build-device ./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace App.xcworkspace \
+    -workspace "$(ls -d *.xcworkspace)" \
     -scheme App \
     -configuration "${CONFIGURATION:-Debug}" \
     -destination "generic/platform=iOS" \
@@ -73,7 +95,7 @@ set -euo pipefail
 for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
 SIMULATOR_ID="${SIMULATOR_ID:-$(./Resources/DevKit/scripts/simulator_udid.py)}"
 XCBUILD_LABEL=test-app ./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace App.xcworkspace \
+    -workspace "$(ls -d *.xcworkspace)" \
     -scheme App \
     -configuration "${CONFIGURATION:-Debug}" \
     -destination "id=$SIMULATOR_ID" \

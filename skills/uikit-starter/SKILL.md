@@ -17,6 +17,7 @@ Ask only for missing values:
 - `bundle-id`: for example `org.zaxh.Mottai`.
 - `display-name`: optional; defaults to the repo name. Can be non-ASCII, for example `趁鲜`.
 - `development-team`: optional Apple Developer Team ID.
+- Platforms: iPhone and iPad by default. Pass `--iphone-only` for iPhone only and `--mac-catalyst` to enable Mac Catalyst.
 - `verify`: `build` (default), `test`, or `none`.
 
 ## Run
@@ -27,6 +28,7 @@ python3 <skill-dir>/scripts/create_project.py \
     --bundle-id org.zaxh.Mottai \
     --display-name Mottai \
     --development-team ABCDE12345 \
+    --iphone-only \
     --parent-dir ~/Developer \
     --verify build
 ```
@@ -34,11 +36,11 @@ python3 <skill-dir>/scripts/create_project.py \
 The script:
 
 1. Runs `gh repo create --template` and clones the new repo.
-2. Sets `APP_DISPLAY_NAME`, `APP_BUNDLE_IDENTIFIER`, and `DEVELOPMENT_TEAM` in `Configuration/Base.xcconfig`.
+2. Sets the identity and platform values in `Configuration/Base.xcconfig`, and renames the workspace to `<repo>.xcworkspace`.
 3. Removes the template's community and skill files, and writes a short README.
 4. Runs the selected `mise` verification.
 
-The project, target, scheme, and workspace keep the fixed name `App`. Do not rename them.
+The project, target, and scheme keep the fixed name `App`. Do not rename them.
 
 ## Report
 

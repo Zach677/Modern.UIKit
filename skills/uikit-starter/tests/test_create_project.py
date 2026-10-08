@@ -16,27 +16,44 @@ class ConfigureTests(unittest.TestCase):
     def setUp(self) -> None:
         self.root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root)
-        for name in ["Configuration", ".github", "skills", "App"]:
+        for name in ["Configuration", ".github", "skills", "App", "ModernUIKit.xcworkspace"]:
             shutil.copytree(REPO_ROOT / name, self.root / name, ignore=shutil.ignore_patterns("__pycache__"))
         for name in ["CONTRIBUTING.md", "AI_POLICY.md", "HACKING.md", "LICENSE", "README.md", "AGENTS.md"]:
             shutil.copy(REPO_ROOT / name, self.root / name)
 
     def test_sets_app_identity_in_base_xcconfig(self) -> None:
-        create_project.configure(self.root, "趁鲜", "org.zaxh.Mottai", "ABCDE12345")
+        create_project.configure(self.root, "Mottai", "趁鲜", "org.zaxh.Mottai", "ABCDE12345")
 
         base = (self.root / "Configuration" / "Base.xcconfig").read_text()
         self.assertIn("APP_DISPLAY_NAME = 趁鲜\n", base)
         self.assertIn("APP_BUNDLE_IDENTIFIER = org.zaxh.Mottai\n", base)
         self.assertIn("DEVELOPMENT_TEAM = ABCDE12345\n", base)
+        self.assertIn("TARGETED_DEVICE_FAMILY = 1,2\n", base)
+        self.assertIn("SUPPORTS_MACCATALYST = NO\n", base)
+
+    def test_platform_flags_set_device_family_and_catalyst(self) -> None:
+        create_project.configure(
+            self.root, "Mottai", "Mottai", "org.zaxh.Mottai", "", iphone_only=True, mac_catalyst=True
+        )
+
+        base = (self.root / "Configuration" / "Base.xcconfig").read_text()
+        self.assertIn("TARGETED_DEVICE_FAMILY = 1\n", base)
+        self.assertIn("SUPPORTS_MACCATALYST = YES\n", base)
+
+    def test_renames_workspace_to_repo_name(self) -> None:
+        create_project.configure(self.root, "Mottai", "趁鲜", "org.zaxh.Mottai", "")
+
+        self.assertEqual([p.name for p in self.root.glob("*.xcworkspace")], ["Mottai.xcworkspace"])
+        self.assertIn("`Mottai.xcworkspace`", (self.root / "README.md").read_text())
 
     def test_empty_team_leaves_no_trailing_space(self) -> None:
-        create_project.configure(self.root, "Mottai", "org.zaxh.Mottai", "")
+        create_project.configure(self.root, "Mottai", "Mottai", "org.zaxh.Mottai", "")
 
         base = (self.root / "Configuration" / "Base.xcconfig").read_text()
         self.assertIn("DEVELOPMENT_TEAM =\n", base)
 
     def test_removes_template_only_files_and_keeps_app_files(self) -> None:
-        create_project.configure(self.root, "Mottai", "org.zaxh.Mottai", "")
+        create_project.configure(self.root, "Mottai", "Mottai", "org.zaxh.Mottai", "")
 
         for relative in create_project.TEMPLATE_ONLY_PATHS:
             self.assertFalse((self.root / relative).exists(), relative)

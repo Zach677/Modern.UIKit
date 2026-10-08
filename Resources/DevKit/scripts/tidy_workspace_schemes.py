@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tidy the Xcode workspace scheme list for App."""
+"""Tidy the Xcode workspace scheme list."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-WORKSPACE = REPO_ROOT / "App.xcworkspace"
+(WORKSPACE,) = REPO_ROOT.glob("*.xcworkspace")
 PINNED_ORDER = ["App"]
 
 

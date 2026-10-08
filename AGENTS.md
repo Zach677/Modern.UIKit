@@ -2,10 +2,11 @@
 
 ## App Shape
 
-- Programmatic UIKit app for iOS 26 and later, iPhone only. Swift 6 language mode with `MainActor` default isolation.
+- Programmatic UIKit app for iOS 26 and later. Swift 6 language mode with `MainActor` default isolation.
 - Entry path: `App/Application/main.swift` -> `AppDelegate` -> `SceneDelegate` -> `Interface/Root/RootViewController`.
 - Do not add SwiftUI, `.xib` files, or storyboards other than `LaunchScreen.storyboard` unless the user asks.
-- The project, target, scheme, and workspace use the fixed name `App`. Do not rename them. The app identity (display name, bundle identifier, team) lives in `Configuration/Base.xcconfig`.
+- The project, target, and scheme use the fixed name `App`. Do not rename them. The workspace is the only `.xcworkspace` at the repository root, and scripts find it by that rule.
+- `Configuration/Base.xcconfig` owns the app identity (display name, bundle identifier, team) and the platforms: `TARGETED_DEVICE_FAMILY` (`1` iPhone, `1,2` iPhone and iPad) and `SUPPORTS_MACCATALYST`. Change platforms there, not in the Xcode project.
 
 ## Layout
 
@@ -53,6 +54,7 @@ Always use `mise`. Do not call `xcodebuild` or `swift test` directly.
 | Task                               | Purpose                                                                                                       |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `mise build`                       | Build for iOS Simulator                                                                                       |
+| `mise build-catalyst`              | Build for Mac Catalyst; `mise build` also runs it when `SUPPORTS_MACCATALYST = YES`                           |
 | `mise build-device`                | Build for a generic iOS device                                                                                |
 | `mise run-ios`                     | Build, install, and launch on the newest iPhone simulator                                                     |
 | `mise test`                        | `test-core` (`swift test` on macOS) and then `test-app` (hosted tests on a simulator)                         |
