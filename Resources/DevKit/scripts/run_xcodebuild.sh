@@ -17,7 +17,7 @@
 #      task runner halts the chain.
 #
 # Env:
-#   XCBUILD_LABEL  Optional label (e.g. "build-sim") used in failure messages.
+#   XCBUILD_LABEL  Optional label (e.g. "build") used in failure messages.
 #   DERIVED_DATA   Derived data root (default: $PWD/.DerivedData). Passed to
 #                  xcodebuild as -derivedDataPath unless the caller provides one.
 
