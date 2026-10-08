@@ -18,14 +18,9 @@ TEMPLATE_ONLY_PATHS = [
     "AI_POLICY.md",
     "HACKING.md",
     "LICENSE",
-    ".github/DISCUSSION_TEMPLATE",
-    ".github/ISSUE_TEMPLATE",
-    ".github/VOUCHED.td",
-    ".github/issue-unvouched-message",
-    ".github/workflows/vouch-check-issue.yml",
-    ".github/workflows/vouch-check-pr.yml",
-    ".github/workflows/vouch-manage-by-discussion.yml",
-    ".github/workflows/vouch-manage-by-issue.yml",
+    # Community templates, vouch workflows, and CI. A private app repo adds
+    # its own CI when it needs one; macOS runners are billed for private repos.
+    ".github",
 ]
 
 
@@ -61,6 +56,9 @@ def configure(
 
     (workspace,) = repo_root.glob("*.xcworkspace")
     workspace.rename(repo_root / f"{workspace_name}.xcworkspace")
+
+    mise = repo_root / "mise.toml"
+    mise.write_text(re.sub(r"\[tasks\.test-tooling\]\n(?:.+\n)*\n", "", mise.read_text()))
 
     for relative in TEMPLATE_ONLY_PATHS:
         path = repo_root / relative

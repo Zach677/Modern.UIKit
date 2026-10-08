@@ -18,7 +18,7 @@ class ConfigureTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root)
         for name in ["Configuration", ".github", "skills", "App", "ModernUIKit.xcworkspace"]:
             shutil.copytree(REPO_ROOT / name, self.root / name, ignore=shutil.ignore_patterns("__pycache__"))
-        for name in ["CONTRIBUTING.md", "AI_POLICY.md", "HACKING.md", "LICENSE", "README.md", "AGENTS.md"]:
+        for name in ["CONTRIBUTING.md", "AI_POLICY.md", "HACKING.md", "LICENSE", "README.md", "AGENTS.md", "mise.toml"]:
             shutil.copy(REPO_ROOT / name, self.root / name)
 
     def test_sets_app_identity_in_base_xcconfig(self) -> None:
@@ -57,10 +57,18 @@ class ConfigureTests(unittest.TestCase):
 
         for relative in create_project.TEMPLATE_ONLY_PATHS:
             self.assertFalse((self.root / relative).exists(), relative)
-        self.assertTrue((self.root / ".github" / "workflows" / "ci.yml").exists())
+        self.assertFalse((self.root / ".github").exists())
         self.assertTrue((self.root / "AGENTS.md").exists())
         self.assertTrue((self.root / "App" / "Resources" / "Info.plist").exists())
         self.assertIn("# Mottai", (self.root / "README.md").read_text())
+
+    def test_generated_project_does_not_reference_removed_tooling(self) -> None:
+        create_project.configure(self.root, "Mottai", "Mottai", "org.zaxh.Mottai", "")
+
+        self.assertNotIn("test-tooling", (self.root / "mise.toml").read_text())
+        for path in self.root.rglob("*"):
+            if path.is_file() and path.suffix in {"", ".md", ".toml", ".yml", ".sh", ".py"}:
+                self.assertNotIn("skills/uikit-starter", path.read_text(errors="ignore"), path)
 
 
 if __name__ == "__main__":

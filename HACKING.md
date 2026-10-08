@@ -12,6 +12,8 @@ request.
   file, add it to that list.
 - When the contribution flow changes, keep `CONTRIBUTING.md`, `AI_POLICY.md`,
   and `.github/` aligned.
+- `.github/`, including CI, belongs to the template only. Generated apps start
+  without CI, because private repos pay for macOS runner minutes.
 - Run `mise test-tooling` after you change the skill scripts.
 
 ## Checks

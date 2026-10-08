@@ -37,7 +37,7 @@ The script:
 
 1. Runs `gh repo create --template` and clones the new repo.
 2. Sets the identity and platform values in `Configuration/Base.xcconfig`, and renames the workspace to `<repo>.xcworkspace`.
-3. Removes the template's community and skill files, and writes a short README.
+3. Removes the template's community files, CI workflow, skill files, and the `test-tooling` task, and writes a short README. The new repo has no CI; add a workflow when the project needs one.
 4. Runs the selected `mise` verification.
 
 The project, target, and scheme keep the fixed name `App`. Do not rename them.
