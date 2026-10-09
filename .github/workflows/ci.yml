@@ -12,18 +12,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
-      - name: Run uikit-starter Python unit tests
+        with:
+          install: false
+      - name: Run tooling unit tests
         run: mise run test-tooling
       - name: Validate string catalogs
         run: mise run validate-xcstrings
 
   app:
     name: Build and test app
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
-      - name: Build iOS Simulator and Mac Catalyst
+      - name: Build for iOS Simulator
         run: mise run build
-      - name: Run unit tests on Mac Catalyst
+      - name: Run Core and app tests
         run: mise run test

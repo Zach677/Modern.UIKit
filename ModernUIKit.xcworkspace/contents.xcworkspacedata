@@ -2,9 +2,9 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "group:ModernUIKit.xcodeproj">
+      location = "group:App.xcodeproj">
    </FileRef>
    <FileRef
-      location = "group:ModernUIKit.xctestplan">
+      location = "group:App.xctestplan">
    </FileRef>
 </Workspace>

@@ -33,7 +33,7 @@ Write commit messages that follow commit style guidelines for the project.
   `feat` for user-visible functionality, and `fix` for bug fixes.
 - **Scope**: Omit scope by default. Use a scope only when it is clearly
   helpful and supported by the diff, such as `docs(readme)` or
-  `ci(vouch)`.
+  `fix(l10n)`.
 - **Summary**: Use imperative mood, no trailing period. Keep the full
   subject line concise, ideally under 72 characters.
 
