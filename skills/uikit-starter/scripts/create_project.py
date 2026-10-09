@@ -75,6 +75,7 @@ def configure(
         "## Development\n\n"
         f"Open `{workspace_name}.xcworkspace`, or use:\n\n"
         "```bash\n"
+        "mise install\n"
         "mise build\n"
         "mise test\n"
         "mise run-ios\n"

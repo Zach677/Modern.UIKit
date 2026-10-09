@@ -48,7 +48,7 @@ Start with [GitHub Discussions](https://github.com/Zach677/Modern.UIKit/discussi
 
 - Xcode with the iOS 26 SDK or later
 - `mise`
-- `gh`, Node.js with `npx` (Prettier), SwiftFormat, and `xcbeautify` for the full workflow
+- `gh`; run `mise install` for the pinned SwiftFormat and xcbeautify
 
 ## Acknowledgements
 

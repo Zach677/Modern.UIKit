@@ -1,10 +1,14 @@
 # App task automation.
 #
-# Build and test tasks route Xcode through the DevKit log-aware wrapper, which
-# also owns derived-data placement and build cache isolation.
+# `mise install` installs the pinned tools below. Xcode, git, and python3
+# come from the Xcode command line tools.
 #
-# Build/test tasks accept `KEY=value` overrides after `--`, for example
-# `mise build -- CONFIGURATION=Release` or `mise test -- SIMULATOR_ID=<udid>`.
+# Override defaults with environment variables, for example
+# `CONFIGURATION=Release mise build` or `SIMULATOR_ID=<udid> mise test`.
+
+[tools]
+swiftformat = "0.63.1"
+xcbeautify = "3.2.1"
 
 [task_config]
 dir = "{{config_root}}"
@@ -14,16 +18,9 @@ description = "Build for iOS Simulator, and Mac Catalyst when enabled"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
-XCBUILD_LABEL=build ./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace "$(ls -d *.xcworkspace)" \
-    -scheme App \
-    -configuration "${CONFIGURATION:-Debug}" \
-    -destination "generic/platform=iOS Simulator" \
-    CODE_SIGNING_ALLOWED=NO \
-    build
+./Resources/DevKit/scripts/run_xcodebuild.sh build "generic/platform=iOS Simulator"
 if grep -q '^SUPPORTS_MACCATALYST = YES' Configuration/Base.xcconfig; then
-    mise run build-catalyst "$@"
+    mise run build-catalyst
 fi
 '''
 
@@ -32,47 +29,26 @@ description = "Build the app for Mac Catalyst"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
 if ! grep -q '^SUPPORTS_MACCATALYST = YES' Configuration/Base.xcconfig; then
-    echo "Mac Catalyst is off. Set SUPPORTS_MACCATALYST = YES in Configuration/Base.xcconfig." >&2
+    echo "error: Mac Catalyst is off. Set SUPPORTS_MACCATALYST = YES in Configuration/Base.xcconfig." >&2
     exit 1
 fi
-XCBUILD_LABEL=build-catalyst ./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace "$(ls -d *.xcworkspace)" \
-    -scheme App \
-    -configuration "${CONFIGURATION:-Debug}" \
-    -destination "generic/platform=macOS,variant=Mac Catalyst" \
-    CODE_SIGNING_ALLOWED=NO \
-    build
+./Resources/DevKit/scripts/run_xcodebuild.sh build "generic/platform=macOS,variant=Mac Catalyst"
 '''
 
 [tasks.build-device]
 description = "Build the app for a generic iOS device"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
-XCBUILD_LABEL=build-device ./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace "$(ls -d *.xcworkspace)" \
-    -scheme App \
-    -configuration "${CONFIGURATION:-Debug}" \
-    -destination "generic/platform=iOS" \
-    CODE_SIGNING_ALLOWED=NO \
-    build
-'''
+run = "./Resources/DevKit/scripts/run_xcodebuild.sh build generic/platform=iOS"
 
 [tasks.run-ios]
 description = "Build, install, and launch on an iOS Simulator"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
-mise run build "$@"
-
+mise run build
 SIMULATOR_ID="${SIMULATOR_ID:-$(./Resources/DevKit/scripts/simulator_udid.py)}"
 APP_PATH=".DerivedData/Build/Products/${CONFIGURATION:-Debug}-iphonesimulator/App.app"
 BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist")
-
 xcrun simctl boot "$SIMULATOR_ID" 2>/dev/null || true
 xcrun simctl bootstatus "$SIMULATOR_ID" -b
 xcrun simctl install "$SIMULATOR_ID" "$APP_PATH"
@@ -92,15 +68,8 @@ description = "Run hosted app tests on an iOS Simulator"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-for arg in "$@"; do case "$arg" in *=*) export "$arg" ;; *) echo "Unexpected argument: $arg" >&2; exit 64 ;; esac; done
 SIMULATOR_ID="${SIMULATOR_ID:-$(./Resources/DevKit/scripts/simulator_udid.py)}"
-XCBUILD_LABEL=test-app ./Resources/DevKit/scripts/run_xcodebuild.sh \
-    -workspace "$(ls -d *.xcworkspace)" \
-    -scheme App \
-    -configuration "${CONFIGURATION:-Debug}" \
-    -destination "id=$SIMULATOR_ID" \
-    CODE_SIGNING_ALLOWED=NO \
-    test
+./Resources/DevKit/scripts/run_xcodebuild.sh test "id=$SIMULATOR_ID"
 '''
 
 [tasks.test-tooling]
@@ -111,39 +80,17 @@ run = [
 ]
 
 [tasks.package-resolve]
-description = "Resolve SwiftPM packages and refresh OpenSourceLicenses.md"
+description = "Resolve SwiftPM packages and refresh OpenSourceLicenses.md (ALLOW_DIRTY=1 for a dirty tree)"
 alias = "scan-license"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-for arg in "$@"; do
-    case "$arg" in
-        dirty=1) export ALLOW_DIRTY=1 ;;
-        dirty=0) ;;
-        *=*) export "$arg" ;;
-        *) echo "Unexpected argument: $arg" >&2; exit 64 ;;
-    esac
-done
-./Resources/DevKit/scripts/scan.license.sh
-'''
+run = "./Resources/DevKit/scripts/scan_licenses.py"
 
 [tasks.format]
-description = "Run swiftformat and prettier in write mode"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-swiftformat . --swift-version 6.0 --exclude Vendor,build,.build,.DerivedData
-npx --yes prettier --write .
-'''
+description = "Format Swift sources with SwiftFormat"
+run = "swiftformat ."
 
 [tasks.format-lint]
-description = "Run swiftformat and prettier in check mode"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-swiftformat . --swift-version 6.0 --exclude Vendor,build,.build,.DerivedData --lint
-npx --yes prettier --check .
-'''
+description = "Check Swift formatting with SwiftFormat"
+run = "swiftformat . --lint"
 
 [tasks.strip-xcstrings]
 description = "Drop stale keys and mirror keys into en values"
@@ -153,19 +100,16 @@ run = "python3 ./Resources/DevKit/scripts/strip_stale_xcstrings.py"
 description = "Fail on stale, orphaned, or unregistered keys and missing translations"
 run = "python3 ./Resources/DevKit/scripts/validate_xcstrings.py --require-locale zh-Hans"
 
-[tasks.tidy-schemes]
-description = "Rewrite workspace scheme visibility/order for Xcode"
-run = "python3 ./Resources/DevKit/scripts/tidy_workspace_schemes.py"
-
 [tasks.chore]
-description = "Strip xcstrings, refresh licenses, tidy schemes, then format"
-run = [
-    { task = "strip-xcstrings" },
-    { task = "package-resolve", args = ["dirty=1"] },
-    { task = "tidy-schemes" },
-    { task = "format" },
-]
+description = "Strip xcstrings, refresh licenses, then format"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+mise run strip-xcstrings
+ALLOW_DIRTY=1 mise run package-resolve
+mise run format
+'''
 
 [tasks.clean]
 description = "Remove derived data and SwiftPM build output"
-run = "rm -rf .DerivedData Packages/Core/.build"
+run = "rm -rf .DerivedData .build Packages/Core/.build"

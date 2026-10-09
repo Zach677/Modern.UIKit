@@ -12,7 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
-      - name: Run uikit-starter Python unit tests
+        with:
+          install: false
+      - name: Run tooling unit tests
         run: mise run test-tooling
       - name: Validate string catalogs
         run: mise run validate-xcstrings

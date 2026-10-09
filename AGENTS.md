@@ -50,22 +50,23 @@ Xcode uses file-system synchronized groups. Adding a file to a folder does not n
 
 ## Build and Test
 
-Always use `mise`. Do not call `xcodebuild` or `swift test` directly.
+Always use `mise`. Do not call `xcodebuild` or `swift test` directly. Run `mise install` once to get the pinned SwiftFormat and xcbeautify.
 
-| Task                               | Purpose                                                                                                       |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `mise build`                       | Build for iOS Simulator                                                                                       |
-| `mise build-catalyst`              | Build for Mac Catalyst; `mise build` also runs it when `SUPPORTS_MACCATALYST = YES`                           |
-| `mise build-device`                | Build for a generic iOS device                                                                                |
-| `mise run-ios`                     | Build, install, and launch on the newest iPhone simulator                                                     |
-| `mise test`                        | `test-core` (`swift test` on macOS) and then `test-app` (hosted tests on a simulator)                         |
-| `mise test-core`                   | Core package tests only; use for fast TDD                                                                     |
-| `mise format` / `mise format-lint` | SwiftFormat and Prettier                                                                                      |
-| `mise package-resolve`             | Resolve packages and refresh `OpenSourceLicenses.md` (alias: `scan-license`; pass `dirty=1` for a dirty tree) |
-| `mise chore`                       | Strip strings, refresh licenses, tidy schemes, format                                                         |
+| Task | Purpose |
+| --- | --- |
+| `mise build` | Build for iOS Simulator |
+| `mise build-catalyst` | Build for Mac Catalyst; `mise build` also runs it when `SUPPORTS_MACCATALYST = YES` |
+| `mise build-device` | Build for a generic iOS device |
+| `mise run-ios` | Build, install, and launch on the newest iPhone simulator |
+| `mise test` | `test-core` (`swift test` on macOS) and then `test-app` (hosted tests on a simulator) |
+| `mise test-core` | Core package tests only; use for fast TDD |
+| `mise format` / `mise format-lint` | Format or check Swift sources with SwiftFormat (`.swiftformat`) |
+| `mise package-resolve` | Resolve packages and refresh `OpenSourceLicenses.md` (alias: `scan-license`) |
+| `mise chore` | Strip strings, refresh licenses, format |
 
 - `run_xcodebuild.sh` fails on the exit code, compiler errors, and xcodebuild failure summaries. Still read the log: a passing run must have no compiler warnings and every test must pass.
-- Override defaults with `KEY=value` after `--`, for example `mise test-app -- SIMULATOR_ID=<udid>`.
+- Override defaults with environment variables: `CONFIGURATION=Release mise build`, `SIMULATOR_ID=<udid> mise test`, `ALLOW_DIRTY=1 mise package-resolve`.
+- Scripts: bash only for thin wrappers, Python 3 with the standard library for anything that parses files. Do not add other script languages.
 
 ## Tests
 
