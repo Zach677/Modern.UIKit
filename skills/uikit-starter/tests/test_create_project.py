@@ -18,7 +18,7 @@ class ConfigureTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root)
         for name in ["Configuration", ".github", "skills", "App", "ModernUIKit.xcworkspace"]:
             shutil.copytree(REPO_ROOT / name, self.root / name, ignore=shutil.ignore_patterns("__pycache__"))
-        for name in ["CONTRIBUTING.md", "AI_POLICY.md", "HACKING.md", "LICENSE", "README.md", "AGENTS.md", "mise.toml"]:
+        for name in ["CONTRIBUTING.md", "AI_POLICY.md", "HACKING.md", "LICENSE", "README.md", "AGENTS.md", "mise.toml", ".gitattributes"]:
             shutil.copy(REPO_ROOT / name, self.root / name)
 
     def test_sets_app_identity_in_base_xcconfig(self) -> None:
@@ -68,7 +68,9 @@ class ConfigureTests(unittest.TestCase):
         self.assertNotIn("test-tooling", (self.root / "mise.toml").read_text())
         for path in self.root.rglob("*"):
             if path.is_file() and path.suffix in {"", ".md", ".toml", ".yml", ".sh", ".py"}:
-                self.assertNotIn("skills/uikit-starter", path.read_text(errors="ignore"), path)
+                text = path.read_text(errors="ignore")
+                for removed in ("skills/", ".github/", "Scripts/Tests"):
+                    self.assertNotIn(removed, text, path)
 
 
 if __name__ == "__main__":

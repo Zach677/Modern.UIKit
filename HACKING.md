@@ -14,7 +14,8 @@ request.
   and `.github/` aligned.
 - `.github/`, including CI, belongs to the template only. Generated apps start
   without CI, because private repos pay for macOS runner minutes.
-- Run `mise test-tooling` after you change the skill scripts.
+- Run `mise test-tooling` after you change `Scripts/` or the skill scripts.
+  Their tests live in `Scripts/Tests/` and `skills/uikit-starter/tests/`.
 
 ## Checks
 

@@ -1,7 +1,7 @@
-# Keep GitHub Linguist focused on the UIKit starter source.
+# Template only: keep the GitHub language bar focused on Swift.
 # These paths are repository automation or agent prompts.
 .agents/** linguist-vendored
 .github/** linguist-vendored
-Resources/DevKit/scripts/** linguist-vendored
+Scripts/** linguist-vendored
 skills/** linguist-vendored
 mise.toml linguist-vendored

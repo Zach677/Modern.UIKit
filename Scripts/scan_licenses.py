@@ -2,7 +2,7 @@
 """Resolve SwiftPM packages and write App/Resources/OpenSourceLicenses.md.
 
 Licenses come from the resolved package checkouts, from Vendor/, and from
-Resources/AdditionalLicenses/<Package>/ (manual files override scanned ones).
+Licenses/<Package>/ (manual files override scanned ones).
 The script fails when a license is GPL, LGPL, or AGPL.
 
 Env: ALLOW_DIRTY=1 lets the script run on a dirty Git tree.
@@ -17,9 +17,9 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[1]
 CHECKOUTS = ROOT / ".build" / "license-scanner"
-MANUAL_DIR = ROOT / "Resources" / "AdditionalLicenses"
+MANUAL_DIR = ROOT / "Licenses"
 OUTPUT = ROOT / "App" / "Resources" / "OpenSourceLicenses.md"
 LICENSE_PREFIXES = ("LICENSE", "COPYING")
 INCOMPATIBLE = (

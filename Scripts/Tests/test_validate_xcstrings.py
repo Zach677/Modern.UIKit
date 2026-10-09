@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "validate_xcstrings.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "validate_xcstrings.py"
 spec = importlib.util.spec_from_file_location("validate_xcstrings", SCRIPT)
 validate_xcstrings = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(validate_xcstrings)

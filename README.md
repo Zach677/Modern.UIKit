@@ -31,11 +31,22 @@ The skill creates a repository from this GitHub template and sets the app identi
 Open `ModernUIKit.xcworkspace`, or use:
 
 ```bash
+mise install    # pinned SwiftFormat and xcbeautify
 mise tasks
 mise build
 mise test
 mise run-ios
 mise test-tooling
+```
+
+```text
+App/                 UIKit app: Application/, Interface/, Resources/
+AppTests/            hosted Swift Testing tests
+Packages/Core/       UI-free logic, tested with swift test
+Configuration/       xcconfig: identity, platforms, signing, version
+Scripts/             build, simulator, license, and localization scripts
+Licenses/            manual license overrides
+skills/uikit-starter the agent skill that creates new projects
 ```
 
 See [AGENTS.md](AGENTS.md) for the project rules and [HACKING.md](HACKING.md) for template maintenance.
@@ -52,7 +63,7 @@ Start with [GitHub Discussions](https://github.com/Zach677/Modern.UIKit/discussi
 
 ## Acknowledgements
 
-Modern.UIKit draws from [MuseAmp](https://github.com/Lakr233/MuseAmp), including its workspace-first Xcode workflow, DevKit maintenance scripts, test-plan setup, and log-aware build automation.
+Modern.UIKit draws from [MuseAmp](https://github.com/Lakr233/MuseAmp), including its workspace-first Xcode workflow, maintenance scripts, test-plan setup, and log-aware build automation.
 
 ## License
 

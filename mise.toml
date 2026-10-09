@@ -18,7 +18,7 @@ description = "Build for iOS Simulator, and Mac Catalyst when enabled"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-./Resources/DevKit/scripts/run_xcodebuild.sh build "generic/platform=iOS Simulator"
+./Scripts/run_xcodebuild.sh build "generic/platform=iOS Simulator"
 if grep -q '^SUPPORTS_MACCATALYST = YES' Configuration/Base.xcconfig; then
     mise run build-catalyst
 fi
@@ -33,12 +33,12 @@ if ! grep -q '^SUPPORTS_MACCATALYST = YES' Configuration/Base.xcconfig; then
     echo "error: Mac Catalyst is off. Set SUPPORTS_MACCATALYST = YES in Configuration/Base.xcconfig." >&2
     exit 1
 fi
-./Resources/DevKit/scripts/run_xcodebuild.sh build "generic/platform=macOS,variant=Mac Catalyst"
+./Scripts/run_xcodebuild.sh build "generic/platform=macOS,variant=Mac Catalyst"
 '''
 
 [tasks.build-device]
 description = "Build the app for a generic iOS device"
-run = "./Resources/DevKit/scripts/run_xcodebuild.sh build generic/platform=iOS"
+run = "./Scripts/run_xcodebuild.sh build generic/platform=iOS"
 
 [tasks.run-ios]
 description = "Build, install, and launch on an iOS Simulator"
@@ -46,7 +46,7 @@ run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 mise run build
-SIMULATOR_ID="${SIMULATOR_ID:-$(./Resources/DevKit/scripts/simulator_udid.py)}"
+SIMULATOR_ID="${SIMULATOR_ID:-$(./Scripts/simulator_udid.py)}"
 APP_PATH=".DerivedData/Build/Products/${CONFIGURATION:-Debug}-iphonesimulator/App.app"
 BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist")
 xcrun simctl boot "$SIMULATOR_ID" 2>/dev/null || true
@@ -68,21 +68,21 @@ description = "Run hosted app tests on an iOS Simulator"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-SIMULATOR_ID="${SIMULATOR_ID:-$(./Resources/DevKit/scripts/simulator_udid.py)}"
-./Resources/DevKit/scripts/run_xcodebuild.sh test "id=$SIMULATOR_ID"
+SIMULATOR_ID="${SIMULATOR_ID:-$(./Scripts/simulator_udid.py)}"
+./Scripts/run_xcodebuild.sh test "id=$SIMULATOR_ID"
 '''
 
 [tasks.test-tooling]
-description = "Run the DevKit and uikit-starter Python unit tests"
+description = "Run the Scripts and uikit-starter Python unit tests"
 run = [
-    "python3 -m unittest discover -s Resources/DevKit/tests",
+    "python3 -m unittest discover -s Scripts/Tests",
     "python3 -m unittest discover -s skills/uikit-starter/tests",
 ]
 
 [tasks.package-resolve]
 description = "Resolve SwiftPM packages and refresh OpenSourceLicenses.md (ALLOW_DIRTY=1 for a dirty tree)"
 alias = "scan-license"
-run = "./Resources/DevKit/scripts/scan_licenses.py"
+run = "./Scripts/scan_licenses.py"
 
 [tasks.format]
 description = "Format Swift sources with SwiftFormat"
@@ -94,11 +94,11 @@ run = "swiftformat . --lint"
 
 [tasks.strip-xcstrings]
 description = "Drop stale keys and mirror keys into en values"
-run = "python3 ./Resources/DevKit/scripts/strip_stale_xcstrings.py"
+run = "python3 ./Scripts/strip_stale_xcstrings.py"
 
 [tasks.validate-xcstrings]
 description = "Fail on stale, orphaned, or unregistered keys and missing translations"
-run = "python3 ./Resources/DevKit/scripts/validate_xcstrings.py --require-locale zh-Hans"
+run = "python3 ./Scripts/validate_xcstrings.py --require-locale zh-Hans"
 
 [tasks.chore]
 description = "Strip xcstrings, refresh licenses, then format"

@@ -18,7 +18,8 @@
 - `Packages/Core/`: UI-free models and business logic. Do not import UIKit here. Put logic here when it can be tested without UIKit.
 - `AppTests/`: hosted tests, one folder per feature, mirroring `App/`.
 - `Configuration/`: xcconfig files. Local overrides go in the untracked `Developer.xcconfig`, `DevelopmentDeveloper.xcconfig`, and `DeveloperRelease.xcconfig`.
-- `Resources/DevKit/scripts/`: build, license, localization, and scheme scripts. Expose new routine scripts through `mise.toml`.
+- `Scripts/`: build, simulator, license, and localization scripts. Expose new routine scripts through `mise.toml`.
+- `Licenses/<Package>/LICENSE`: manual license texts. They override the licenses found in package checkouts.
 
 Xcode uses file-system synchronized groups. Adding a file to a folder does not need a project file edit.
 
