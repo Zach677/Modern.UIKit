@@ -18,7 +18,7 @@ The skill creates a repository from this GitHub template and sets the app identi
 
 ## Starter
 
-- UIKit lifecycle through `main.swift`, `AppDelegate`, and `SceneDelegate`. No main storyboard.
+- UIKit scene lifecycle through `@main AppDelegate` and `SceneDelegate`. No storyboards; the launch screen uses the `UILaunchScreen` key.
 - iOS 26, Swift 6 with `MainActor` default isolation.
 - iPhone and iPad by default. iPhone-only and Mac Catalyst are one-line switches in `Base.xcconfig`.
 - `Packages/Core` local package for UI-free logic, tested with `swift test` on macOS.

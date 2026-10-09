@@ -1,6 +1,5 @@
 import UIKit
 
-@objc(SceneDelegate)
 final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
 
@@ -13,7 +12,6 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         let navigationController = UINavigationController(rootViewController: RootViewController())
         let window = UIWindow(windowScene: windowScene)
-        window.tintColor = .systemBlue
         window.rootViewController = navigationController
 
         self.window = window

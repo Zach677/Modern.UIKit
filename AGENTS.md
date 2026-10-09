@@ -3,8 +3,9 @@
 ## App Shape
 
 - Programmatic UIKit app for iOS 26 and later. Swift 6 language mode with `MainActor` default isolation.
-- Entry path: `App/Application/main.swift` -> `AppDelegate` -> `SceneDelegate` -> `Interface/Root/RootViewController`.
-- Do not add SwiftUI, `.xib` files, or storyboards other than `LaunchScreen.storyboard` unless the user asks.
+- Entry path: `@main AppDelegate` -> `SceneDelegate` (set in `App/Resources/Info.plist`) -> `Interface/Root/RootViewController`.
+- Do not add SwiftUI, `.xib` files, or storyboards unless the user asks. The launch screen comes from the `UILaunchScreen` Info.plist key.
+- Set the app tint with the `AccentColor` asset, not `window.tintColor`.
 - The project, target, and scheme use the fixed name `App`. Do not rename them. The workspace is the only `.xcworkspace` at the repository root, and scripts find it by that rule.
 - `Configuration/Base.xcconfig` owns the app identity (display name, bundle identifier, team) and the platforms: `TARGETED_DEVICE_FAMILY` (`1` iPhone, `1,2` iPhone and iPad) and `SUPPORTS_MACCATALYST`. Change platforms there, not in the Xcode project.
 
