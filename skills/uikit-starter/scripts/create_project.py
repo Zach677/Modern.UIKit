@@ -14,6 +14,8 @@ DEFAULT_TEMPLATE_REPO = "Zach677/Modern.UIKit"
 # Files that describe the template project itself, not the generated app.
 TEMPLATE_ONLY_PATHS = [
     "skills",
+    # Tests for the DevKit scripts run in the template, like the skill tests.
+    "Resources/DevKit/tests",
     "CONTRIBUTING.md",
     "AI_POLICY.md",
     "HACKING.md",

@@ -39,6 +39,11 @@ LOCALIZED_KEY_RE = re.compile(
     r'(?:String\(\s*localized:|NSLocalizedString\()\s*"((?:[^"\\]|\\.)*)"'
 )
 
+# Xcode stores `"\(value)"` as a format specifier such as `%lld` or `%@`.
+# Both sides are reduced to a skeleton with each placeholder replaced by U+FFFC.
+FORMAT_SPECIFIER_RE = re.compile(r"%(?:\d+\$)?[-+ #0]*\d*(?:\.\d+)?(?:hh|h|ll|l|q|z|t|j)?[@dDiuUxXoOfFeEgGcCsSaAp]")
+PLACEHOLDER = "\ufffc"
+
 SWIFT_ESCAPES = {
     "n": "\n",
     "t": "\t",
@@ -62,6 +67,13 @@ def unescape_swift_literal(literal: str) -> str:
     i = 0
     while i < len(literal):
         ch = literal[i]
+        if literal.startswith("\\(", i):
+            depth, i = 1, i + 2
+            while i < len(literal) and depth:
+                depth += {"(": 1, ")": -1}.get(literal[i], 0)
+                i += 1
+            result.append(PLACEHOLDER)
+            continue
         if ch == "\\" and i + 1 < len(literal):
             replacement = SWIFT_ESCAPES.get(literal[i + 1])
             if replacement is not None:
@@ -71,6 +83,22 @@ def unescape_swift_literal(literal: str) -> str:
         result.append(ch)
         i += 1
     return "".join(result)
+
+
+def key_skeleton(key: str) -> str:
+    return FORMAT_SPECIFIER_RE.sub(PLACEHOLDER, key.replace("%%", "%"))
+
+
+def string_units(localization: dict) -> list[dict]:
+    """Return the stringUnit of a localization, or of each plural/device variation."""
+    if isinstance(localization.get("stringUnit"), dict):
+        return [localization["stringUnit"]]
+    units: list[dict] = []
+    for cases in (localization.get("variations") or {}).values():
+        for case in (cases or {}).values():
+            if isinstance(case, dict):
+                units.extend(string_units(case))
+    return units
 
 
 def target_scope(catalog_path: Path, root: Path) -> Path:
@@ -124,26 +152,27 @@ def validate_entry(
             errors.append(f"{key!r}: missing {locale} localization")
             continue
 
-        string_unit = loc.get("stringUnit")
-        if not isinstance(string_unit, dict):
+        units = string_units(loc)
+        if not units:
             errors.append(f"{key!r}: {locale} has no stringUnit")
             continue
 
-        value = string_unit.get("value")
-        state = string_unit.get("state")
+        for string_unit in units:
+            value = string_unit.get("value")
+            state = string_unit.get("state")
 
-        if not isinstance(value, str) or not value:
-            errors.append(f"{key!r}: {locale} value is empty")
-        elif locale == source_lang and value != key:
-            errors.append(
-                f"{key!r}: {locale} value does not mirror the key "
-                f"(got {value!r}; run `mise strip-xcstrings`)"
-            )
+            if not isinstance(value, str) or not value:
+                errors.append(f"{key!r}: {locale} value is empty")
+            elif locale == source_lang and "stringUnit" in loc and value != key:
+                errors.append(
+                    f"{key!r}: {locale} value does not mirror the key "
+                    f"(got {value!r}; run `mise strip-xcstrings`)"
+                )
 
-        if state != "translated":
-            errors.append(
-                f"{key!r}: {locale} state is {state!r}, expected 'translated'"
-            )
+            if state != "translated":
+                errors.append(
+                    f"{key!r}: {locale} state is {state!r}, expected 'translated'"
+                )
 
     return errors
 
@@ -171,13 +200,15 @@ def validate_file(path: Path, root: Path, extra_locales: set[str]) -> list[str]:
     scope = target_scope(path, root)
     source_keys = referenced_keys(scope)
     catalog_keys = set(strings.keys())
+    source_skeletons = {key_skeleton(key) for key in source_keys}
+    catalog_skeletons = {key_skeleton(key) for key in catalog_keys}
 
-    for key in sorted(catalog_keys - source_keys):
+    for key in sorted(k for k in catalog_keys if key_skeleton(k) not in source_skeletons):
         errors.append(
             f"{path}: {key!r}: orphaned key (no String(localized:) or "
             f"NSLocalizedString reference under {scope})"
         )
-    for key in sorted(source_keys - catalog_keys):
+    for key in sorted(k for k in source_keys if key_skeleton(k) not in catalog_skeletons):
         errors.append(
             f"{path}: {key!r}: referenced under {scope} but missing from the catalog"
         )

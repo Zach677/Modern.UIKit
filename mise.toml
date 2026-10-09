@@ -104,8 +104,11 @@ XCBUILD_LABEL=test-app ./Resources/DevKit/scripts/run_xcodebuild.sh \
 '''
 
 [tasks.test-tooling]
-description = "Run the uikit-starter Python unit tests"
-run = "python3 -m unittest discover -s skills/uikit-starter/tests"
+description = "Run the DevKit and uikit-starter Python unit tests"
+run = [
+    "python3 -m unittest discover -s Resources/DevKit/tests",
+    "python3 -m unittest discover -s skills/uikit-starter/tests",
+]
 
 [tasks.package-resolve]
 description = "Resolve SwiftPM packages and refresh OpenSourceLicenses.md"

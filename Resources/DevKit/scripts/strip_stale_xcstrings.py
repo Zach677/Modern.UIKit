@@ -50,6 +50,11 @@ def normalize(doc: dict) -> tuple[dict, int, int, str]:
         localizations = dict(entry.get("localizations") or {})
 
         source_loc = dict(localizations.get(source_lang) or {})
+        if "variations" in source_loc:
+            # Plural and device variations have their own values; keep them.
+            entry["localizations"] = localizations
+            new_strings[key] = entry
+            continue
         string_unit = dict(source_loc.get("stringUnit") or {})
         current_value = string_unit.get("value")
         current_state = string_unit.get("state")
