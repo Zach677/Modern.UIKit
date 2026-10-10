@@ -66,6 +66,7 @@ Always use `mise`. Do not call `xcodebuild` or `swift test` directly. Run `mise 
 | `mise chore` | Strip strings, refresh licenses, format |
 
 - `run_xcodebuild.sh` fails on the exit code, compiler errors, and xcodebuild failure summaries. Still read the log: a passing run must have no compiler warnings and every test must pass.
+- `run_xcodebuild.sh` passes `-skipMacroValidation`, so packages with Swift macros build on the command line. In Xcode, select **Trust & Enable** the first time you build such a package.
 - Override defaults with environment variables: `CONFIGURATION=Release mise build`, `SIMULATOR_ID=<udid> mise test`, `ALLOW_DIRTY=1 mise package-resolve`.
 - Scripts: bash only for thin wrappers, Python 3 with the standard library for anything that parses files. Do not add other script languages.
 

@@ -51,5 +51,18 @@ class ValidateFileTests(unittest.TestCase):
         self.assertTrue(any("missing from the catalog" in error for error in errors), errors)
 
 
+class IterXcstringsTests(unittest.TestCase):
+    def test_skips_derived_data_checkouts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for folder in ("App/Resources", ".DerivedData/SourcePackages/checkouts/Some/Resources"):
+                (root / folder).mkdir(parents=True)
+                (root / folder / "Localizable.xcstrings").write_text("{}")
+
+            found = [path.relative_to(root) for path in validate_xcstrings.iter_xcstrings(root)]
+
+        self.assertEqual(found, [Path("App/Resources/Localizable.xcstrings")])
+
+
 if __name__ == "__main__":
     unittest.main()
