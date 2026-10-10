@@ -28,6 +28,7 @@ EXCLUDE_DIR_NAMES = {
     "build",
     ".build",
     "DerivedData",
+    ".DerivedData",
     "Pods",
     "Carthage",
     ".git",

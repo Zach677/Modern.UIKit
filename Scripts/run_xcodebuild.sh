@@ -38,15 +38,17 @@ xcodebuild \
     -destination "$destination" \
     -derivedDataPath .DerivedData \
     CODE_SIGNING_ALLOWED=NO \
+    -skipMacroValidation \
     "$@" \
     "$action" 2>&1 | tee "$log" | beautify
 status=${PIPESTATUS[0]}
 set -e
 
 # Match only lines that xcodebuild or the compiler emit: diagnostics start with a
-# source path or "error:", and summaries start with "**". The test host process
-# also writes to this log, and its system logs can contain "error:" mid-line.
-error_pattern='^(/[^:]+:[0-9]+:([0-9]+:)? |xcodebuild: )?error:|^\*\* (BUILD|TEST|ARCHIVE|CLEAN|ANALYZE) FAILED \*\*|^Testing failed:|^Failing tests:'
+# source path (`file:line:col:` or `Package.swift:PACKAGE-TARGET:name:`) or
+# "error:", and summaries start with "**". The test host process also writes to
+# this log, and its system logs can contain "error:" mid-line.
+error_pattern='^(/[^:]+(:[^: ]+)*: |xcodebuild: )?error:|^\*\* (BUILD|TEST|ARCHIVE|CLEAN|ANALYZE) FAILED \*\*|^Testing failed:|^Failing tests:'
 errors=$(grep -E "$error_pattern" "$log" || true)
 
 if [[ $status -ne 0 || -n $errors ]]; then

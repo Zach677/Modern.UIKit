@@ -1,4 +1,5 @@
 import importlib.util
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -36,6 +37,19 @@ class NormalizeTests(unittest.TestCase):
         self.assertEqual((removed, fixed), (1, 1))
         self.assertEqual(list(new_doc["strings"]), ["Hello"])
         self.assertEqual(new_doc["strings"]["Hello"]["localizations"]["en"]["stringUnit"]["value"], "Hello")
+
+
+class IterXcstringsTests(unittest.TestCase):
+    def test_skips_derived_data_checkouts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for folder in ("App/Resources", ".DerivedData/SourcePackages/checkouts/Some/Resources"):
+                (root / folder).mkdir(parents=True)
+                (root / folder / "Localizable.xcstrings").write_text("{}")
+
+            found = [path.relative_to(root) for path in strip_stale_xcstrings.iter_xcstrings(root)]
+
+        self.assertEqual(found, [Path("App/Resources/Localizable.xcstrings")])
 
 
 if __name__ == "__main__":
