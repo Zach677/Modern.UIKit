@@ -53,7 +53,7 @@ See [AGENTS.md](AGENTS.md) for the project rules and [HACKING.md](HACKING.md) fo
 
 ## Contributing
 
-Start with [GitHub Discussions](https://github.com/Zach677/Modern.UIKit/discussions) for bug triage, ideas, and questions. The issue tracker is reserved for accepted work. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Bug reports and small, focused pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Requirements
 

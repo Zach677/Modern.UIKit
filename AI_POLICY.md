@@ -11,7 +11,7 @@ The Modern.UIKit project has strict rules for AI usage:
   greater system without the aid of AI tools, do not contribute
   to this project.
 
-- **Issues and discussions can use AI assistance but must have a full
+- **Issues can use AI assistance but must have a full
   human-in-the-loop.** This means that any content generated with AI
   must have been reviewed _and edited_ by a human before submission.
   AI is very good at being overly verbose and including noise that
@@ -22,11 +22,9 @@ The Modern.UIKit project has strict rules for AI usage:
   Text and code are the only acceptable AI-generated content, per the
   other rules in this policy.
 
-- **Bad AI drivers will be denounced** People who produce bad contributions
-  that are clearly AI (slop) will be added to our public denouncement list.
-  This list will block all future contributions. Additionally, the list
-  is public and may be used by other projects to be aware of bad actors.
-  We love to help junior developers learn and grow, but
+- **Bad AI contributions will be closed.** A contribution that is clearly
+  AI output without human review (slop) will be closed without a detailed
+  review. We love to help junior developers learn and grow, but
   if you're interested in that then don't use AI, and we'll help you.
   I'm sorry that bad AI drivers have ruined this for you.
 
@@ -38,7 +36,7 @@ they've proven themselves trustworthy to apply good judgment.
 
 Please remember that Modern.UIKit is maintained by humans.
 
-Every discussion, issue, and pull request is read and reviewed by
+Every issue and pull request is read and reviewed by
 humans (and sometimes machines, too). It is a boundary point at which
 people interact with each other and the work done. It is rude and
 disrespectful to approach this boundary with low-effort, unqualified

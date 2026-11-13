@@ -22,8 +22,8 @@ TEMPLATE_ONLY_PATHS = [
     "LICENSE",
     # Linguist rules that keep the public template's language bar on Swift.
     ".gitattributes",
-    # Community templates, vouch workflows, and CI. A private app repo adds
-    # its own CI when it needs one; macOS runners are billed for private repos.
+    # CI. A private app repo adds its own CI when it needs one; macOS runners
+    # are billed for private repos.
     ".github",
 ]
 

@@ -10,8 +10,8 @@ request.
 - Files that describe only the template are listed in `TEMPLATE_ONLY_PATHS`
   in `skills/uikit-starter/scripts/create_project.py`. When you add such a
   file, add it to that list.
-- When the contribution flow changes, keep `CONTRIBUTING.md`, `AI_POLICY.md`,
-  and `.github/` aligned.
+- When the contribution flow changes, keep `CONTRIBUTING.md` and
+  `AI_POLICY.md` aligned.
 - `.github/`, including CI, belongs to the template only. Generated apps start
   without CI, because private repos pay for macOS runner minutes.
 - Run `mise test-tooling` after you change `Scripts/` or the skill scripts.
