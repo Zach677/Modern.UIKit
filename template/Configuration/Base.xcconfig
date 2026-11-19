@@ -5,8 +5,9 @@ APP_DISPLAY_NAME = Modern.UIKit
 APP_BUNDLE_IDENTIFIER = com.example.modernuikit
 DEVELOPMENT_TEAM =
 
-// Platforms. Use TARGETED_DEVICE_FAMILY = 1 for iPhone only.
-TARGETED_DEVICE_FAMILY = 1,2
+// Platforms. Use TARGETED_DEVICE_FAMILY = 1,2 for iPhone and iPad.
+// SUPPORTS_MACCATALYST = YES needs TARGETED_DEVICE_FAMILY = 1,2.
+TARGETED_DEVICE_FAMILY = 1
 SUPPORTS_MACCATALYST = NO
 
 // Shared by the App and AppTests targets. Do not set these in the Xcode

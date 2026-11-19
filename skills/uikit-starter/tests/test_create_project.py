@@ -2,7 +2,6 @@ import importlib.util
 import shutil
 import subprocess
 import tempfile
-import tomllib
 import unittest
 from pathlib import Path
 
@@ -28,16 +27,23 @@ class ConfigureTests(unittest.TestCase):
         self.assertIn("APP_DISPLAY_NAME = 趁鲜\n", base)
         self.assertIn("APP_BUNDLE_IDENTIFIER = org.zaxh.Mottai\n", base)
         self.assertIn("DEVELOPMENT_TEAM = ABCDE12345\n", base)
-        self.assertIn("TARGETED_DEVICE_FAMILY = 1,2\n", base)
+        self.assertIn("TARGETED_DEVICE_FAMILY = 1\n", base)
         self.assertIn("SUPPORTS_MACCATALYST = NO\n", base)
 
     def test_platform_flags_set_device_family_and_catalyst(self) -> None:
         create_project.configure(
-            self.root, "Mottai", "Mottai", "org.zaxh.Mottai", "", iphone_only=True, mac_catalyst=True
+            self.root, "Mottai", "Mottai", "org.zaxh.Mottai", "", ipad=True, mac_catalyst=True
         )
 
         base = (self.root / "Configuration" / "Base.xcconfig").read_text()
-        self.assertIn("TARGETED_DEVICE_FAMILY = 1\n", base)
+        self.assertIn("TARGETED_DEVICE_FAMILY = 1,2\n", base)
+        self.assertIn("SUPPORTS_MACCATALYST = YES\n", base)
+
+    def test_mac_catalyst_implies_ipad(self) -> None:
+        create_project.configure(self.root, "Mottai", "Mottai", "org.zaxh.Mottai", "", mac_catalyst=True)
+
+        base = (self.root / "Configuration" / "Base.xcconfig").read_text()
+        self.assertIn("TARGETED_DEVICE_FAMILY = 1,2\n", base)
         self.assertIn("SUPPORTS_MACCATALYST = YES\n", base)
 
     def test_renames_workspace_to_repo_name(self) -> None:
@@ -80,7 +86,7 @@ class ConfigureTests(unittest.TestCase):
 
         mise = (self.root / "mise.toml").read_text()
         self.assertNotIn("test-tooling", mise)
-        self.assertIn({"task": "test"}, tomllib.loads(mise)["tasks"]["check"]["run"])
+        self.assertIn('{ task = "test" }', mise.split("[tasks.check]", 1)[1].split("\n[", 1)[0])
 
 
 if __name__ == "__main__":

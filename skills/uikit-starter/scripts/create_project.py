@@ -54,14 +54,15 @@ def configure(
     display_name: str,
     bundle_id: str,
     team: str,
-    iphone_only: bool = False,
+    ipad: bool = False,
     mac_catalyst: bool = False,
 ) -> None:
     base = repo_root / "Configuration" / "Base.xcconfig"
     set_xcconfig_value(base, "APP_DISPLAY_NAME", display_name)
     set_xcconfig_value(base, "APP_BUNDLE_IDENTIFIER", bundle_id)
     set_xcconfig_value(base, "DEVELOPMENT_TEAM", team)
-    set_xcconfig_value(base, "TARGETED_DEVICE_FAMILY", "1" if iphone_only else "1,2")
+    # Mac Catalyst builds the iPad app, so it needs the iPad family.
+    set_xcconfig_value(base, "TARGETED_DEVICE_FAMILY", "1,2" if ipad or mac_catalyst else "1")
     set_xcconfig_value(base, "SUPPORTS_MACCATALYST", "YES" if mac_catalyst else "NO")
 
     (workspace,) = repo_root.glob("*.xcworkspace")
@@ -87,8 +88,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--display-name", help="Home screen name; defaults to the repo name")
     parser.add_argument("--bundle-id", required=True)
     parser.add_argument("--development-team", default="")
-    parser.add_argument("--iphone-only", action="store_true", help="Target iPhone only instead of iPhone and iPad")
-    parser.add_argument("--mac-catalyst", action="store_true", help="Enable Mac Catalyst")
+    parser.add_argument("--ipad", action="store_true", help="Target iPhone and iPad instead of iPhone only")
+    parser.add_argument("--mac-catalyst", action="store_true", help="Enable Mac Catalyst; implies --ipad")
     parser.add_argument("--template-repo", default=DEFAULT_TEMPLATE_REPO, help="GitHub repo to clone template/ from")
     parser.add_argument("--template-dir", help="Local template/ directory to copy instead of cloning --template-repo")
     parser.add_argument("--parent-dir", default=".")
@@ -118,7 +119,7 @@ def main() -> int:
         display_name=args.display_name or repo_name,
         bundle_id=args.bundle_id,
         team=args.development_team.strip(),
-        iphone_only=args.iphone_only,
+        ipad=args.ipad,
         mac_catalyst=args.mac_catalyst,
     )
     run(["git", "init", "--quiet"], cwd=repo_root)

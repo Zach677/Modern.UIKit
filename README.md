@@ -2,17 +2,20 @@
 
 > Agent-native, programmatic UIKit starter for iOS 26 apps.
 
-## Create a Project
+## Start with an AI Agent
 
-Install the skill for Codex, Claude Code, or another skill-aware agent:
+Give this prompt to Codex, Claude Code, or another coding agent. Replace the app name and bundle ID:
 
-```bash
-npx skills add Zach677/Modern.UIKit --skill uikit-starter -g -y
+```text
+Create a new iOS app from https://github.com/Zach677/Modern.UIKit.
+Clone it to a temporary directory and follow skills/uikit-starter/SKILL.md.
+App name: <AppName>
+Bundle ID: <com.example.AppName>
 ```
 
-Then ask the agent:
+To use the skill again without the prompt, install it with `npx skills add Zach677/Modern.UIKit --skill uikit-starter -g -y`, or copy or symlink `skills/uikit-starter` into the skills folder of your agent. Then ask: `Use $uikit-starter to create a new UIKit app named Mottai with bundle ID org.zaxh.Mottai.`
 
-- `Use $uikit-starter to create a new private UIKit app repo named Mottai with bundle ID org.zaxh.Mottai, iPhone only.`
+## Create a Project
 
 The skill copies `template/` into a new local repository, creates the GitHub repository, and sets the app identity in `Configuration/Base.xcconfig`. The project, target, and scheme keep the fixed name `App`. Only the workspace file takes the repository name.
 
@@ -29,7 +32,7 @@ Do not use the GitHub **Use this template** button. It copies the whole reposito
 
 - UIKit scene lifecycle through `@main AppDelegate` and `SceneDelegate`. No storyboards; the launch screen uses the `UILaunchScreen` key.
 - iOS 26, Swift 6 with `MainActor` default isolation.
-- iPhone and iPad by default. iPhone-only and Mac Catalyst are one-line switches in `Base.xcconfig`.
+- iPhone only by default. Pass `--ipad` or `--mac-catalyst` when you create the app, or change `TARGETED_DEVICE_FAMILY` and `SUPPORTS_MACCATALYST` in `Base.xcconfig`. Mac Catalyst needs iPad.
 - `Packages/Core` local package for UI-free logic, tested with `swift test` on macOS.
 - Hosted Swift Testing target, shared test plan, and an Xcode workspace.
 - Shared xcconfig files for identity, signing, and version.
