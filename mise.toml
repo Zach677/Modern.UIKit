@@ -8,9 +8,11 @@ dir = "{{config_root}}"
 
 [tasks.test-tooling]
 description = "Run the Python tests for template/Scripts and the uikit-starter skill"
+# /usr/bin/python3 is the Xcode Command Line Tools interpreter (3.9 on a fresh
+# Mac), so a newer Python feature fails here as it would for a new user.
 run = [
-    "python3 -m unittest discover -s Tests/Scripts",
-    "python3 -m unittest discover -s skills/uikit-starter/tests",
+    "/usr/bin/python3 -m unittest discover -s Tests/Scripts",
+    "/usr/bin/python3 -m unittest discover -s skills/uikit-starter/tests",
 ]
 
 [tasks.check]

@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Print the UDID of an available iPhone simulator on the newest iOS runtime."""
 
+import itertools
 import json
 import subprocess
 import sys
 
 
-def runtime_version(identifier: str) -> list[int]:
-    return [int(part) for part in identifier.rsplit("iOS-", 1)[1].split("-")]
+def runtime_version(identifier: str) -> tuple[list[int], bool]:
+    # Device-specific runtimes such as iOS-27-2-iPhone19-4 rank below the generic runtime of the same version.
+    parts = identifier.rsplit("iOS-", 1)[1].split("-")
+    numbers = [int(part) for part in itertools.takewhile(str.isdigit, parts)]
+    return numbers, len(parts) == len(numbers)
 
 
 def main() -> int:

@@ -73,6 +73,7 @@ Always use `mise`. Do not call `xcodebuild` or `swift test` directly. Run `mise 
 - Override defaults with environment variables: `CONFIGURATION=Release mise build`, `SIMULATOR_ID=<udid> mise test`, `ALLOW_DIRTY=1 mise package-resolve`.
 - Builds do not sign by default. `SIGN=1 mise build-device` signs with the team in `Base.xcconfig` and lets xcodebuild update provisioning profiles.
 - Scripts: bash only for thin wrappers, Python 3 with the standard library for anything that parses files. Do not add other script languages.
+- Python scripts must run on Python 3.9, the `/usr/bin/python3` from the Xcode Command Line Tools on a fresh Mac.
 
 ## Tests
 
