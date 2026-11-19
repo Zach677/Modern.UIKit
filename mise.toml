@@ -1,132 +1,33 @@
-# App task automation.
+# Template repository tasks. The app tasks live in template/mise.toml.
 #
-# `mise install` installs the pinned tools below. Xcode, git, and python3
-# come from the Xcode command line tools.
-#
-# Override defaults with environment variables, for example
-# `CONFIGURATION=Release mise build` or `SIMULATOR_ID=<udid> mise test`.
-
-[tools]
-swiftformat = "0.63.1"
-xcbeautify = "3.2.1"
+# mise also loads this file for commands that run inside template/. Do not add
+# [tools] here, and do not reuse an app task name other than `check`.
 
 [task_config]
 dir = "{{config_root}}"
 
-[tasks.build]
-description = "Build for iOS Simulator, and Mac Catalyst when enabled"
-run = [
-    './Scripts/run_xcodebuild.sh build "generic/platform=iOS Simulator"',
-    { task = "build-catalyst-if-enabled" },
-]
-
-[tasks.build-catalyst-if-enabled]
-description = "Build for Mac Catalyst when SUPPORTS_MACCATALYST = YES"
-hide = true
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-if grep -q '^SUPPORTS_MACCATALYST = YES' Configuration/Base.xcconfig; then
-    mise run build-catalyst
-fi
-'''
-
-[tasks.build-catalyst]
-description = "Build the app for Mac Catalyst"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-if ! grep -q '^SUPPORTS_MACCATALYST = YES' Configuration/Base.xcconfig; then
-    echo "error: Mac Catalyst is off. Set SUPPORTS_MACCATALYST = YES in Configuration/Base.xcconfig." >&2
-    exit 1
-fi
-./Scripts/run_xcodebuild.sh build "generic/platform=macOS,variant=Mac Catalyst"
-'''
-
-[tasks.build-device]
-description = "Build the app for a generic iOS device"
-run = "./Scripts/run_xcodebuild.sh build generic/platform=iOS"
-
-[tasks.run-ios]
-description = "Build, install, and launch on an iOS Simulator"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-./Scripts/run_xcodebuild.sh build "generic/platform=iOS Simulator"
-SIMULATOR_ID="${SIMULATOR_ID:-$(./Scripts/simulator_udid.py)}"
-APP_PATH=".DerivedData/Build/Products/${CONFIGURATION:-Debug}-iphonesimulator/App.app"
-BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist")
-xcrun simctl boot "$SIMULATOR_ID" 2>/dev/null || true
-xcrun simctl bootstatus "$SIMULATOR_ID" -b
-xcrun simctl install "$SIMULATOR_ID" "$APP_PATH"
-xcrun simctl launch "$SIMULATOR_ID" "$BUNDLE_ID"
-'''
-
-[tasks.test]
-description = "Run Core package tests and hosted app tests"
-run = [{ task = "test-core" }, { task = "test-app" }]
-
-[tasks.test-core]
-description = "Run Core package tests on macOS with swift test"
-run = "swift test --package-path Packages/Core --quiet"
-
-[tasks.test-app]
-description = "Run hosted app tests on an iOS Simulator"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-SIMULATOR_ID="${SIMULATOR_ID:-$(./Scripts/simulator_udid.py)}"
-./Scripts/run_xcodebuild.sh test "id=$SIMULATOR_ID" -testPlan App
-'''
-
 [tasks.test-tooling]
-description = "Run the Scripts and uikit-starter Python unit tests"
+description = "Run the Python tests for template/Scripts and the uikit-starter skill"
 run = [
-    "python3 -m unittest discover -s Scripts/Tests",
+    "python3 -m unittest discover -s Tests/Scripts",
     "python3 -m unittest discover -s skills/uikit-starter/tests",
 ]
 
 [tasks.check]
-description = "Run all checks before a commit: format, strings, tooling tests, tests, and the Mac Catalyst build when enabled"
+description = "Run test-tooling, then generate an app from template/ and run its mise check"
 run = [
-    { task = "format-lint" },
-    { task = "validate-xcstrings" },
     { task = "test-tooling" },
-    { task = "test" },
-    { task = "build-catalyst-if-enabled" },
-]
-
-[tasks.package-resolve]
-description = "Resolve SwiftPM packages and refresh OpenSourceLicenses.md (ALLOW_DIRTY=1 for a dirty tree)"
-alias = "scan-license"
-run = "./Scripts/scan_licenses.py"
-
-[tasks.format]
-description = "Format Swift sources with SwiftFormat"
-run = "swiftformat ."
-
-[tasks.format-lint]
-description = "Check Swift formatting with SwiftFormat"
-run = "swiftformat . --lint"
-
-[tasks.strip-xcstrings]
-description = "Drop stale keys and mirror keys into en values"
-run = "python3 ./Scripts/strip_stale_xcstrings.py"
-
-[tasks.validate-xcstrings]
-description = "Fail on stale, orphaned, or unregistered keys and missing translations"
-run = "python3 ./Scripts/validate_xcstrings.py --require-locale zh-Hans"
-
-[tasks.chore]
-description = "Strip xcstrings, refresh licenses, then format"
-run = '''
+    '''
 #!/usr/bin/env bash
 set -euo pipefail
-mise run strip-xcstrings
-ALLOW_DIRTY=1 mise run package-resolve
-mise run format
-'''
-
-[tasks.clean]
-description = "Remove derived data and SwiftPM build output"
-run = "rm -rf .DerivedData .build Packages/Core/.build"
+parent=$(mktemp -d)
+trap 'rm -rf "$parent"' EXIT
+python3 skills/uikit-starter/scripts/create_project.py \
+    --repo CheckApp \
+    --bundle-id org.example.CheckApp \
+    --template-dir template \
+    --parent-dir "$parent" \
+    --no-remote \
+    --verify check
+''',
+]

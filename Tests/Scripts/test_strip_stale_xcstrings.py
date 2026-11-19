@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / "strip_stale_xcstrings.py"
+SCRIPT = Path(__file__).resolve().parents[2] / "template" / "Scripts" / "strip_stale_xcstrings.py"
 spec = importlib.util.spec_from_file_location("strip_stale_xcstrings", SCRIPT)
 strip_stale_xcstrings = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(strip_stale_xcstrings)

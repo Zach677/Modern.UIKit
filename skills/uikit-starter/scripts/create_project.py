@@ -1,37 +1,43 @@
 #!/usr/bin/env python3
-"""Create a new app repository from the Modern.UIKit GitHub template."""
+"""Create a new app repository from the template/ directory of Modern.UIKit."""
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 DEFAULT_TEMPLATE_REPO = "Zach677/Modern.UIKit"
-
-# Files that describe the template project itself, not the generated app.
-TEMPLATE_ONLY_PATHS = [
-    "skills",
-    # Tests for Scripts/ run in the template, like the skill tests.
-    "Scripts/Tests",
-    "CONTRIBUTING.md",
-    "AI_POLICY.md",
-    "HACKING.md",
-    "LICENSE",
-    # Linguist rules that keep the public template's language bar on Swift.
-    ".gitattributes",
-    # CI. A private app repo adds its own CI when it needs one; macOS runners
-    # are billed for private repos.
-    ".github",
-]
 
 
 def run(command: list[str], cwd: Path | None = None) -> None:
     result = subprocess.run(command, cwd=cwd, check=False)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
+
+
+def template_files(template_dir: Path) -> list[str]:
+    """Tracked and untracked-but-not-ignored files, so build output and local overrides stay out."""
+    output = subprocess.run(
+        ["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+        cwd=template_dir,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    # A tracked file that was deleted in the working tree is still listed.
+    return sorted({name for name in output.split("\0") if name and os.path.lexists(template_dir / name)})
+
+
+def copy_template(template_dir: Path, repo_root: Path) -> None:
+    for name in template_files(template_dir):
+        target = repo_root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(template_dir / name, target, follow_symlinks=False)
 
 
 def set_xcconfig_value(path: Path, key: str, value: str) -> None:
@@ -61,17 +67,6 @@ def configure(
     (workspace,) = repo_root.glob("*.xcworkspace")
     workspace.rename(repo_root / f"{workspace_name}.xcworkspace")
 
-    mise = repo_root / "mise.toml"
-    text = re.sub(r"\[tasks\.test-tooling\]\n(?:.+\n)*\n", "", mise.read_text())
-    mise.write_text(re.sub(r'^ *\{ task = "test-tooling" \},\n', "", text, flags=re.MULTILINE))
-
-    for relative in TEMPLATE_ONLY_PATHS:
-        path = repo_root / relative
-        if path.is_dir():
-            shutil.rmtree(path)
-        elif path.exists():
-            path.unlink()
-
     (repo_root / "README.md").write_text(
         f"# {display_name}\n\n"
         "A programmatic UIKit app for iOS 26.\n\n"
@@ -94,10 +89,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--development-team", default="")
     parser.add_argument("--iphone-only", action="store_true", help="Target iPhone only instead of iPhone and iPad")
     parser.add_argument("--mac-catalyst", action="store_true", help="Enable Mac Catalyst")
-    parser.add_argument("--template-repo", default=DEFAULT_TEMPLATE_REPO)
+    parser.add_argument("--template-repo", default=DEFAULT_TEMPLATE_REPO, help="GitHub repo to clone template/ from")
+    parser.add_argument("--template-dir", help="Local template/ directory to copy instead of cloning --template-repo")
     parser.add_argument("--parent-dir", default=".")
     parser.add_argument("--visibility", choices=["private", "public"], default="private")
-    parser.add_argument("--verify", choices=["none", "build", "test"], default="build")
+    parser.add_argument("--no-remote", action="store_true", help="Do not create the GitHub repo or add origin")
+    parser.add_argument("--verify", choices=["none", "build", "test", "check"], default="build")
     return parser.parse_args()
 
 
@@ -109,7 +106,12 @@ def main() -> int:
     if repo_root.exists():
         raise SystemExit(f"Local destination already exists: {repo_root}")
 
-    run(["gh", "repo", "create", args.repo, f"--{args.visibility}", "--template", args.template_repo, "--clone"], cwd=parent_dir)
+    if args.template_dir:
+        copy_template(Path(args.template_dir).expanduser().resolve(), repo_root)
+    else:
+        with tempfile.TemporaryDirectory() as clone:
+            run(["git", "clone", "--quiet", "--depth", "1", f"https://github.com/{args.template_repo}.git", clone])
+            copy_template(Path(clone) / "template", repo_root)
     configure(
         repo_root,
         workspace_name=repo_name,
@@ -119,6 +121,10 @@ def main() -> int:
         iphone_only=args.iphone_only,
         mac_catalyst=args.mac_catalyst,
     )
+    run(["git", "init", "--quiet"], cwd=repo_root)
+    if not args.no_remote:
+        # Creates the empty GitHub repo and adds it as origin. Nothing is pushed.
+        run(["gh", "repo", "create", args.repo, f"--{args.visibility}", "--source", ".", "--remote", "origin"], cwd=repo_root)
 
     if args.verify != "none":
         run(["mise", "trust", "mise.toml"], cwd=repo_root)

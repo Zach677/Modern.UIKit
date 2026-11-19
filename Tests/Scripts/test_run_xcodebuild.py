@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SCRIPT = Path(__file__).resolve().parents[1] / "run_xcodebuild.sh"
+SCRIPT = Path(__file__).resolve().parents[2] / "template" / "Scripts" / "run_xcodebuild.sh"
 PATTERN = re.search(r"^error_pattern='(.*)'$", SCRIPT.read_text(), re.MULTILINE).group(1)
 
 

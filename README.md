@@ -14,7 +14,16 @@ Then ask the agent:
 
 - `Use $uikit-starter to create a new private UIKit app repo named Mottai with bundle ID org.zaxh.Mottai, iPhone only.`
 
-The skill creates a repository from this GitHub template and sets the app identity in `Configuration/Base.xcconfig`. The project, target, and scheme keep the fixed name `App`. Only the workspace file takes the repository name.
+The skill copies `template/` into a new local repository, creates the GitHub repository, and sets the app identity in `Configuration/Base.xcconfig`. The project, target, and scheme keep the fixed name `App`. Only the workspace file takes the repository name.
+
+Without an agent, run the script from a local checkout:
+
+```bash
+python3 skills/uikit-starter/scripts/create_project.py \
+    --repo Mottai --bundle-id org.zaxh.Mottai --template-dir template --parent-dir ~/Developer
+```
+
+Do not use the GitHub **Use this template** button. It copies the whole repository, including the template-only files at the root.
 
 ## Starter
 
@@ -28,26 +37,30 @@ The skill creates a repository from this GitHub template and sets the app identi
 
 ## Development
 
-Open `ModernUIKit.xcworkspace`, or use:
+Open `template/ModernUIKit.xcworkspace`, or use:
 
 ```bash
+cd template
 mise install    # pinned SwiftFormat and xcbeautify
 mise tasks
 mise run-ios
-mise check      # run before each commit: format, strings, tooling and app tests
+cd ..
+mise check      # run before each commit: tooling tests, then a generated app's mise check
 ```
 
 ```text
-App/                 UIKit app: Application/, Interface/, Resources/
-AppTests/            hosted Swift Testing tests
-Packages/Core/       UI-free logic, tested with swift test
-Configuration/       xcconfig: identity, platforms, signing, version
-Scripts/             build, simulator, license, and localization scripts
-Licenses/            manual license overrides
-skills/uikit-starter the agent skill that creates new projects
+template/                     the app; each generated app is a copy of it
+  App/                        UIKit app: Application/, Interface/, Resources/
+  AppTests/                   hosted Swift Testing tests
+  Packages/Core/              UI-free logic, tested with swift test
+  Configuration/              xcconfig: identity, platforms, signing, version
+  Scripts/                    build, simulator, license, and localization scripts
+  Licenses/                   manual license overrides
+skills/uikit-starter/         the agent skill that creates new projects
+Tests/Scripts/                tests for template/Scripts
 ```
 
-See [AGENTS.md](AGENTS.md) for the project rules and [HACKING.md](HACKING.md) for template maintenance.
+See [template/AGENTS.md](template/AGENTS.md) for the app rules and [HACKING.md](HACKING.md) for template maintenance.
 
 ## Contributing
 
@@ -57,7 +70,7 @@ Bug reports and small, focused pull requests are welcome. See [CONTRIBUTING.md](
 
 - Xcode with the iOS 26 SDK or later
 - `mise`
-- `gh`; run `mise install` for the pinned SwiftFormat and xcbeautify
+- `gh` to create the GitHub repository; run `mise install` in `template/` or in the app for the pinned SwiftFormat and xcbeautify
 
 ## Acknowledgements
 

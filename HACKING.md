@@ -5,20 +5,25 @@ request.
 
 ## Template Maintenance
 
-- `AGENTS.md` is copied into every generated app. Keep it about the app, not
-  about this template repository.
-- Files that describe only the template are listed in `TEMPLATE_ONLY_PATHS`
-  in `skills/uikit-starter/scripts/create_project.py`. When you add such a
-  file, add it to that list.
+- `template/` is the app. The generator copies every file in it that git
+  tracks or that is untracked and not ignored. Put template-only files at the
+  repository root, not in `template/`.
+- `template/AGENTS.md` is copied into every generated app. Keep it about the
+  app, not about this template repository.
 - When the contribution flow changes, keep `CONTRIBUTING.md` and
   `AI_POLICY.md` aligned.
-- `.github/`, including CI, belongs to the template only. Generated apps start
-  without CI, because private repos pay for macOS runner minutes.
-- Run `mise test-tooling` after you change `Scripts/` or the skill scripts.
-  Their tests live in `Scripts/Tests/` and `skills/uikit-starter/tests/`.
+- Generated apps start without CI, because private repos pay for macOS runner
+  minutes. This repository has no CI either; run `mise check` locally.
+- Run `mise test-tooling` after you change `template/Scripts/` or the skill
+  scripts. Their tests live in `Tests/Scripts/` and
+  `skills/uikit-starter/tests/`.
 
 ## Checks
 
-Run `mise check` before each commit. It runs `format-lint`,
-`validate-xcstrings`, `test-tooling`, `test`, and the Mac Catalyst build when
-Mac Catalyst is on.
+Run `mise check` at the repository root before each commit. It runs
+`mise test-tooling`, generates an app from the working tree of `template/`
+into a temporary directory, and runs `mise check` in that app. That proves a
+clean copy of the template builds and passes its tests.
+
+`cd template && mise check` runs only the app checks. mise also loads the root
+`mise.toml` there, so `mise tasks` in `template/` also shows `test-tooling`.

@@ -1,11 +1,13 @@
 import importlib.util
 import shutil
+import subprocess
 import tempfile
 import tomllib
 import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+TEMPLATE_DIR = REPO_ROOT / "template"
 SCRIPT = REPO_ROOT / "skills" / "uikit-starter" / "scripts" / "create_project.py"
 
 spec = importlib.util.spec_from_file_location("create_project", SCRIPT)
@@ -15,12 +17,9 @@ spec.loader.exec_module(create_project)
 
 class ConfigureTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.root = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, self.root)
-        for name in ["Configuration", ".agents", ".github", "skills", "App", "Scripts", "ModernUIKit.xcworkspace"]:
-            shutil.copytree(REPO_ROOT / name, self.root / name, ignore=shutil.ignore_patterns("__pycache__"))
-        for name in ["CONTRIBUTING.md", "AI_POLICY.md", "HACKING.md", "LICENSE", "README.md", "AGENTS.md", "mise.toml", ".gitattributes"]:
-            shutil.copy(REPO_ROOT / name, self.root / name)
+        self.root = Path(tempfile.mkdtemp()) / "Mottai"
+        self.addCleanup(shutil.rmtree, self.root.parent)
+        create_project.copy_template(TEMPLATE_DIR, self.root)
 
     def test_sets_app_identity_in_base_xcconfig(self) -> None:
         create_project.configure(self.root, "Mottai", "趁鲜", "org.zaxh.Mottai", "ABCDE12345")
@@ -53,28 +52,35 @@ class ConfigureTests(unittest.TestCase):
         base = (self.root / "Configuration" / "Base.xcconfig").read_text()
         self.assertIn("DEVELOPMENT_TEAM =\n", base)
 
-    def test_removes_template_only_files_and_keeps_app_files(self) -> None:
+    def test_generated_files_equal_template_files(self) -> None:
         create_project.configure(self.root, "Mottai", "Mottai", "org.zaxh.Mottai", "")
 
-        for relative in create_project.TEMPLATE_ONLY_PATHS:
-            self.assertFalse((self.root / relative).exists(), relative)
-        self.assertFalse((self.root / ".github").exists())
-        self.assertTrue((self.root / "AGENTS.md").exists())
-        self.assertTrue((self.root / "App" / "Resources" / "Info.plist").exists())
-        self.assertIn("# Mottai", (self.root / "README.md").read_text())
+        listed = subprocess.run(
+            ["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+            cwd=TEMPLATE_DIR,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()
+        expected = {
+            name.replace("ModernUIKit.xcworkspace/", "Mottai.xcworkspace/")
+            for name in listed
+            if (TEMPLATE_DIR / name).is_symlink() or (TEMPLATE_DIR / name).exists()
+        } | {"README.md"}
+        actual = {
+            path.relative_to(self.root).as_posix()
+            for path in self.root.rglob("*")
+            if path.is_symlink() or path.is_file()
+        }
+        self.assertEqual(actual, expected)
+        self.assertTrue((self.root / "CLAUDE.md").is_symlink())
 
-    def test_generated_project_does_not_reference_removed_tooling(self) -> None:
+    def test_generated_mise_runs_standalone_checks(self) -> None:
         create_project.configure(self.root, "Mottai", "Mottai", "org.zaxh.Mottai", "")
 
-        tasks = tomllib.loads((self.root / "mise.toml").read_text())["tasks"]
-        self.assertNotIn("test-tooling", tasks)
-        self.assertNotIn({"task": "test-tooling"}, tasks["check"]["run"])
-        self.assertIn({"task": "test"}, tasks["check"]["run"])
-        for path in self.root.rglob("*"):
-            if path.is_file() and path.suffix in {"", ".md", ".toml", ".yml", ".sh", ".py"}:
-                text = path.read_text(errors="ignore")
-                for removed in ("skills/", ".github/", "Scripts/Tests"):
-                    self.assertNotIn(removed, text, path)
+        mise = (self.root / "mise.toml").read_text()
+        self.assertNotIn("test-tooling", mise)
+        self.assertIn({"task": "test"}, tomllib.loads(mise)["tasks"]["check"]["run"])
 
 
 if __name__ == "__main__":

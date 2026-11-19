@@ -1,0 +1,19 @@
+# Xcode
+xcuserdata/
+/.DerivedData/
+*.xcresult
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Local signing overrides
+Configuration/Developer.xcconfig
+Configuration/DevelopmentDeveloper.xcconfig
+Configuration/DeveloperRelease.xcconfig
+
+# Python
+__pycache__/
+
+# macOS
+.DS_Store
