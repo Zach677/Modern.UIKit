@@ -16,13 +16,13 @@
 			containerPortal = F829D0792E252173005A7D1A /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = F829D0802E252173005A7D1A;
-			remoteInfo = "App";
+			remoteInfo = App;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		F829D0812E252173005A7D1A /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F829D09A2E252176005A7D1A /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F829D0812E252173005A7D1A /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F829D09A2E252176005A7D1A /* AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -36,6 +36,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		F829D0832E252173005A7D1A /* App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				F829D0932E252174005A7D1A /* Exceptions for "App" folder in "App" target */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
 		F829D0992E252175005A7D1A /* Configuration */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Configuration;
@@ -43,32 +51,24 @@
 		};
 		F829D09C2E252176005A7D1A /* AppTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "AppTests";
-			sourceTree = "<group>";
-		};
-		F829D0832E252173005A7D1A /* App */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				F829D0932E252174005A7D1A /* Exceptions for "App" folder in "App" target */,
-			);
-			path = "App";
+			path = AppTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		F829D09F2E252176005A7D1A /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		F829D07E2E252173005A7D1A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				F829D0B32E252176005A7D1A /* Core in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F829D09F2E252176005A7D1A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,6 +97,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		F829D0802E252173005A7D1A /* App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F829D0942E252174005A7D1A /* Build configuration list for PBXNativeTarget "App" */;
+			buildPhases = (
+				F829D07D2E252173005A7D1A /* Sources */,
+				F829D07E2E252173005A7D1A /* Frameworks */,
+				F829D07F2E252173005A7D1A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F829D0832E252173005A7D1A /* App */,
+			);
+			name = App;
+			packageProductDependencies = (
+				F829D0B22E252176005A7D1A /* Core */,
+			);
+			productName = App;
+			productReference = F829D0812E252173005A7D1A /* App.app */;
+			productType = "com.apple.product-type.application";
+		};
 		F829D09D2E252176005A7D1A /* AppTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = F829D0A42E252176005A7D1A /* Build configuration list for PBXNativeTarget "AppTests" */;
@@ -113,35 +136,12 @@
 			fileSystemSynchronizedGroups = (
 				F829D09C2E252176005A7D1A /* AppTests */,
 			);
-			name = "AppTests";
+			name = AppTests;
 			packageProductDependencies = (
 			);
-			productName = "AppTests";
+			productName = AppTests;
 			productReference = F829D09A2E252176005A7D1A /* AppTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		F829D0802E252173005A7D1A /* App */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = F829D0942E252174005A7D1A /* Build configuration list for PBXNativeTarget "App" */;
-			buildPhases = (
-				F829D07D2E252173005A7D1A /* Sources */,
-				F829D07E2E252173005A7D1A /* Frameworks */,
-				F829D07F2E252173005A7D1A /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				F829D0832E252173005A7D1A /* App */,
-			);
-			name = "App";
-			packageProductDependencies = (
-				F829D0B22E252176005A7D1A /* Core */,
-			);
-			productName = "App";
-			productReference = F829D0812E252173005A7D1A /* App.app */;
-			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
@@ -151,14 +151,14 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1640;
-				LastUpgradeCheck = 1640;
+				LastUpgradeCheck = 2720;
 				TargetAttributes = {
+					F829D0802E252173005A7D1A = {
+						CreatedOnToolsVersion = 16.4;
+					};
 					F829D09D2E252176005A7D1A = {
 						CreatedOnToolsVersion = 16.4;
 						TestTargetID = F829D0802E252173005A7D1A;
-					};
-					F829D0802E252173005A7D1A = {
-						CreatedOnToolsVersion = 16.4;
 					};
 				};
 			};
@@ -168,6 +168,7 @@
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hans",
 			);
 			mainGroup = F829D0782E252173005A7D1A;
 			minimizedProjectReferenceProxies = 1;
@@ -186,14 +187,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		F829D0A02E252176005A7D1A /* Resources */ = {
+		F829D07F2E252173005A7D1A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		F829D07F2E252173005A7D1A /* Resources */ = {
+		F829D0A02E252176005A7D1A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -203,14 +204,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		F829D09E2E252176005A7D1A /* Sources */ = {
+		F829D07D2E252173005A7D1A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		F829D07D2E252173005A7D1A /* Sources */ = {
+		F829D09E2E252176005A7D1A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -228,30 +229,6 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		F829D0A22E252176005A7D1A /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = F829D0992E252175005A7D1A /* Configuration */;
-			baseConfigurationReferenceRelativePath = Development.xcconfig;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_IDENTIFIER).tests";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/App";
-			};
-			name = Debug;
-		};
-		F829D0A32E252176005A7D1A /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = F829D0992E252175005A7D1A /* Configuration */;
-			baseConfigurationReferenceRelativePath = Release.xcconfig;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_IDENTIFIER).tests";
-				SWIFT_EMIT_LOC_STRINGS = NO;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/App";
-			};
-			name = Release;
-		};
 		F829D0952E252174005A7D1A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReferenceAnchor = F829D0992E252175005A7D1A /* Configuration */;
@@ -260,8 +237,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				INFOPLIST_FILE = App/Resources/Info.plist;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "$(APP_DISPLAY_NAME)";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -281,8 +258,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				INFOPLIST_FILE = App/Resources/Info.plist;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "$(APP_DISPLAY_NAME)";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -301,6 +278,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -353,6 +331,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -365,6 +344,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -410,8 +390,33 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		F829D0A22E252176005A7D1A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = F829D0992E252175005A7D1A /* Configuration */;
+			baseConfigurationReferenceRelativePath = Development.xcconfig;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_IDENTIFIER).tests";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/App";
+			};
+			name = Debug;
+		};
+		F829D0A32E252176005A7D1A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = F829D0992E252175005A7D1A /* Configuration */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				PRODUCT_BUNDLE_IDENTIFIER = "$(APP_BUNDLE_IDENTIFIER).tests";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/App";
 			};
 			name = Release;
 		};
