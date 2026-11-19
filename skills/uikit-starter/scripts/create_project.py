@@ -107,6 +107,16 @@ def main() -> int:
     if repo_root.exists():
         raise SystemExit(f"Local destination already exists: {repo_root}")
 
+    # Check the commands before the script creates a directory or a GitHub repo.
+    required = {"git": "https://git-scm.com"}
+    if not args.no_remote:
+        required["gh"] = "https://cli.github.com"
+    if args.verify != "none":
+        required["mise"] = "https://mise.jdx.dev"
+    missing = [f"{name} not found. Install it from {url}, then rerun." for name, url in required.items() if not shutil.which(name)]
+    if missing:
+        raise SystemExit("\n".join(missing))
+
     if args.template_dir:
         copy_template(Path(args.template_dir).expanduser().resolve(), repo_root)
     else:

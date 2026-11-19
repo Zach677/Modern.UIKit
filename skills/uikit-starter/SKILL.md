@@ -28,7 +28,7 @@ The GitHub repo goes to the account that `gh` is signed in to. To create it in a
 
 ## Run
 
-Prerequisites: `git`, `gh` (not necessary with `--no-remote`), `mise`, and Xcode with an iOS simulator runtime. First run `command -v mise`. If mise is missing, ask the user to install it (https://mise.jdx.dev). Then run `gh auth status`, unless you use `--no-remote`.
+Prerequisites: `git`, `gh` (not necessary with `--no-remote`), `mise` (not necessary with `--verify none`), and Xcode with an iOS simulator runtime. The script checks these commands before it creates anything. If mise is missing, ask the user to install it (https://mise.jdx.dev). After `curl https://mise.run | sh`, the user must add `~/.local/bin` to `PATH` (or run `mise activate`) before you run the script again. Then run `gh auth status`, unless you use `--no-remote`.
 
 If this skill is installed, the script clones the template from GitHub:
 

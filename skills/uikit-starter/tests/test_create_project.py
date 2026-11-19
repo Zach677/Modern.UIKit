@@ -1,9 +1,11 @@
 import importlib.util
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TEMPLATE_DIR = REPO_ROOT / "template"
@@ -87,6 +89,30 @@ class ConfigureTests(unittest.TestCase):
         mise = (self.root / "mise.toml").read_text()
         self.assertNotIn("test-tooling", mise)
         self.assertIn('{ task = "test" }', mise.split("[tasks.check]", 1)[1].split("\n[", 1)[0])
+
+
+class PrerequisiteTests(unittest.TestCase):
+    def run_main(self, *flags: str) -> str:
+        parent = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, parent)
+        argv = ["create_project.py", "--repo", "Mottai", "--bundle-id", "org.zaxh.Mottai",
+                "--template-dir", str(TEMPLATE_DIR), "--parent-dir", str(parent), *flags]
+        which = lambda name: "/usr/bin/git" if name == "git" else None
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(create_project.shutil, "which", which):
+            with self.assertRaises(SystemExit) as raised:
+                create_project.main()
+        self.assertFalse((parent / "Mottai").exists())
+        return str(raised.exception.code)
+
+    def test_missing_commands_stop_before_any_change(self) -> None:
+        message = self.run_main()
+        self.assertIn("gh not found. Install it from https://cli.github.com, then rerun.", message)
+        self.assertIn("mise not found. Install it from https://mise.jdx.dev, then rerun.", message)
+
+    def test_no_remote_does_not_need_gh(self) -> None:
+        message = self.run_main("--no-remote")
+        self.assertNotIn("gh not found", message)
+        self.assertIn("mise not found", message)
 
 
 if __name__ == "__main__":
