@@ -107,7 +107,7 @@ def main() -> int:
     if repo_root.exists():
         raise SystemExit(f"Local destination already exists: {repo_root}")
 
-    # Check the commands before the script creates a directory or a GitHub repo.
+    # Check the commands and the gh sign-in before the script creates a directory or a GitHub repo.
     required = {"git": "https://git-scm.com"}
     if not args.no_remote:
         required["gh"] = "https://cli.github.com"
@@ -116,6 +116,8 @@ def main() -> int:
     missing = [f"{name} not found. Install it from {url}, then rerun." for name, url in required.items() if not shutil.which(name)]
     if missing:
         raise SystemExit("\n".join(missing))
+    if not args.no_remote and subprocess.run(["gh", "auth", "status"], capture_output=True, check=False).returncode != 0:
+        raise SystemExit("gh is not signed in. Run gh auth login, or rerun with --no-remote.")
 
     if args.template_dir:
         copy_template(Path(args.template_dir).expanduser().resolve(), repo_root)

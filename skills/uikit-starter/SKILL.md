@@ -28,7 +28,7 @@ The GitHub repo goes to the account that `gh` is signed in to. To create it in a
 
 ## Run
 
-Prerequisites: `git`, `gh` (not necessary with `--no-remote`), `mise` (not necessary with `--verify none`), and Xcode with an iOS simulator runtime. The script checks these commands before it creates anything. If mise is missing, ask the user to install it (https://mise.jdx.dev). After `curl https://mise.run | sh`, the user must add `~/.local/bin` to `PATH` (or run `mise activate`) before you run the script again. Then run `gh auth status`, unless you use `--no-remote`.
+Prerequisites: `git`, `gh` (not necessary with `--no-remote`), `mise` (not necessary with `--verify none`), and Xcode with an iOS simulator runtime. The script checks these commands and the `gh` sign-in before it creates anything. If mise is missing, ask the user to install it (https://mise.jdx.dev). After `curl https://mise.run | sh`, the user must add `~/.local/bin` to `PATH` (or run `mise activate`) before you run the script again.
 
 If this skill is installed, the script clones the template from GitHub:
 
@@ -46,7 +46,7 @@ python3 <tmp>/Modern.UIKit/skills/uikit-starter/scripts/create_project.py \
     --template-dir <tmp>/Modern.UIKit/template --parent-dir <parent-dir>
 ```
 
-After the script creates the app, delete `<tmp>/Modern.UIKit`.
+When the script ends, delete `<tmp>/Modern.UIKit`. Do this also when the script fails.
 
 The script:
 
@@ -70,7 +70,7 @@ The script exits non-zero on any build error, test failure, or warning. Exit cod
 Stop and report the error. Do not retry with a different name.
 
 - Local destination exists: ask for a different repo name or parent directory. Do not delete or overwrite the directory.
-- `gh` is not signed in: ask the user to run `gh auth login`, or rerun with `--no-remote`.
+- `gh is not signed in`: ask the user to run `gh auth login`, or ask if they want `--no-remote`. Nothing was created.
 - The GitHub repo exists: ask for a different repo name.
 - No iOS simulator runtime: ask the user to install one with `xcodebuild -downloadPlatform iOS` or in Xcode > Settings > Components. Then run the verification in the new app, for example `mise build`. Do not create the app again.
 

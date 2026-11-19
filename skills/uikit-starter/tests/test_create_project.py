@@ -92,13 +92,18 @@ class ConfigureTests(unittest.TestCase):
 
 
 class PrerequisiteTests(unittest.TestCase):
-    def run_main(self, *flags: str) -> str:
+    def run_main(self, *flags: str, which=lambda name: "/usr/bin/git" if name == "git" else None) -> str:
         parent = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, parent)
         argv = ["create_project.py", "--repo", "Mottai", "--bundle-id", "org.zaxh.Mottai",
                 "--template-dir", str(TEMPLATE_DIR), "--parent-dir", str(parent), *flags]
-        which = lambda name: "/usr/bin/git" if name == "git" else None
-        with mock.patch.object(sys, "argv", argv), mock.patch.object(create_project.shutil, "which", which):
+        # Every command fails, so no real gh or git runs and gh auth status reports signed out.
+        self.commands = []
+        def run(command, **_):
+            self.commands.append(command)
+            return subprocess.CompletedProcess(command, 1, "", "")
+        with mock.patch.object(sys, "argv", argv), mock.patch.object(create_project.shutil, "which", which), \
+                mock.patch.object(create_project.subprocess, "run", run):
             with self.assertRaises(SystemExit) as raised:
                 create_project.main()
         self.assertFalse((parent / "Mottai").exists())
@@ -113,6 +118,12 @@ class PrerequisiteTests(unittest.TestCase):
         message = self.run_main("--no-remote")
         self.assertNotIn("gh not found", message)
         self.assertIn("mise not found", message)
+        self.assertEqual(self.commands, [])
+
+    def test_signed_out_gh_stops_before_any_change(self) -> None:
+        message = self.run_main(which=lambda name: f"/usr/bin/{name}")
+        self.assertEqual(message, "gh is not signed in. Run gh auth login, or rerun with --no-remote.")
+        self.assertEqual(self.commands, [["gh", "auth", "status"]])
 
 
 if __name__ == "__main__":
