@@ -4,6 +4,7 @@
 #
 # Usage: run_xcodebuild.sh <action> <destination> [extra xcodebuild arguments]
 # Env:   CONFIGURATION  Build configuration (default: Debug)
+#        SIGN=1         Sign the build and let xcodebuild update provisioning
 
 set -euo pipefail
 
@@ -15,6 +16,11 @@ workspaces=(*.xcworkspace)
 if [[ ${#workspaces[@]} -ne 1 || ! -d ${workspaces[0]} ]]; then
     echo "error: expected exactly one .xcworkspace in $PWD" >&2
     exit 1
+fi
+
+signing=(CODE_SIGNING_ALLOWED=NO)
+if [[ ${SIGN:-} == 1 ]]; then
+    signing=(-allowProvisioningUpdates)
 fi
 
 log=$(mktemp -t xcodebuild)
@@ -37,7 +43,7 @@ xcodebuild \
     -configuration "${CONFIGURATION:-Debug}" \
     -destination "$destination" \
     -derivedDataPath .DerivedData \
-    CODE_SIGNING_ALLOWED=NO \
+    "${signing[@]}" \
     -skipMacroValidation \
     "$@" \
     "$action" 2>&1 | tee "$log" | beautify

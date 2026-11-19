@@ -19,9 +19,6 @@ request.
 
 ## Checks
 
-```bash
-mise build
-mise test
-mise test-tooling
-mise validate-xcstrings
-```
+Run `mise check` before each commit. It runs `format-lint`,
+`validate-xcstrings`, `test-tooling`, `test`, and the Mac Catalyst build when
+Mac Catalyst is on.

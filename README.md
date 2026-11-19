@@ -33,10 +33,8 @@ Open `ModernUIKit.xcworkspace`, or use:
 ```bash
 mise install    # pinned SwiftFormat and xcbeautify
 mise tasks
-mise build
-mise test
 mise run-ios
-mise test-tooling
+mise check      # run before each commit: format, strings, tooling and app tests
 ```
 
 ```text

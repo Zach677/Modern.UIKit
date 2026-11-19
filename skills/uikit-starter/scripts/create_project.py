@@ -62,7 +62,8 @@ def configure(
     workspace.rename(repo_root / f"{workspace_name}.xcworkspace")
 
     mise = repo_root / "mise.toml"
-    mise.write_text(re.sub(r"\[tasks\.test-tooling\]\n(?:.+\n)*\n", "", mise.read_text()))
+    text = re.sub(r"\[tasks\.test-tooling\]\n(?:.+\n)*\n", "", mise.read_text())
+    mise.write_text(re.sub(r'^ *\{ task = "test-tooling" \},\n', "", text, flags=re.MULTILINE))
 
     for relative in TEMPLATE_ONLY_PATHS:
         path = repo_root / relative
@@ -78,9 +79,8 @@ def configure(
         f"Open `{workspace_name}.xcworkspace`, or use:\n\n"
         "```bash\n"
         "mise install\n"
-        "mise build\n"
-        "mise test\n"
         "mise run-ios\n"
+        "mise check    # run before each commit\n"
         "```\n\n"
         "See [AGENTS.md](AGENTS.md) for the project rules.\n"
     )

@@ -7,7 +7,7 @@
 - Do not add SwiftUI, `.xib` files, or storyboards unless the user asks. The launch screen comes from the `UILaunchScreen` Info.plist key.
 - Set the app tint with the `AccentColor` asset, not `window.tintColor`.
 - The project, target, and scheme use the fixed name `App`. Do not rename them. The workspace is the only `.xcworkspace` at the repository root, and scripts find it by that rule.
-- `Configuration/Base.xcconfig` owns the app identity (display name, bundle identifier, team) and the platforms: `TARGETED_DEVICE_FAMILY` (`1` iPhone, `1,2` iPhone and iPad) and `SUPPORTS_MACCATALYST`. Change platforms there, not in the Xcode project.
+- `Configuration/Base.xcconfig` owns the app identity (display name, bundle identifier, team), the platforms: `TARGETED_DEVICE_FAMILY` (`1` iPhone, `1,2` iPhone and iPad) and `SUPPORTS_MACCATALYST`, and the Swift and deployment settings that both targets share. Change these there, not in the Xcode project. A value in the Xcode project overrides the xcconfig.
 
 ## Layout
 
@@ -39,6 +39,7 @@ Xcode uses file-system synchronized groups. Adding a file to a folder does not n
 - Build views with Auto Layout in code. Install the view hierarchy in `viewDidLoad`.
 - Keep lifecycle methods and action handlers small. Use explicit `apply`/`render` methods for state changes.
 - Use diffable data sources for lists.
+- Declare the section and item identifier enums of a diffable data source `nonisolated`. With `MainActor` default isolation, their `Hashable` conformance is otherwise main-actor isolated and cannot satisfy the `Sendable` requirement of the data source.
 - Push for drill-in navigation. Present temporary flows modally, inside a `UINavigationController` when the flow can go deeper.
 - Use semantic colors and Dynamic Type text styles.
 - Split a large controller by responsibility with extensions such as `+Layout`, `+Actions`, or `+DataSource`.
@@ -55,19 +56,22 @@ Always use `mise`. Do not call `xcodebuild` or `swift test` directly. Run `mise 
 
 | Task | Purpose |
 | --- | --- |
+| `mise check` | Run before each commit: `format-lint`, `validate-xcstrings`, `test`, and `build-catalyst` when Mac Catalyst is on |
 | `mise build` | Build for iOS Simulator |
 | `mise build-catalyst` | Build for Mac Catalyst; `mise build` also runs it when `SUPPORTS_MACCATALYST = YES` |
 | `mise build-device` | Build for a generic iOS device |
-| `mise run-ios` | Build, install, and launch on the newest iPhone simulator |
+| `mise run-ios` | Build for iOS Simulator, then install and launch on the newest iPhone simulator |
 | `mise test` | `test-core` (`swift test` on macOS) and then `test-app` (hosted tests on a simulator) |
 | `mise test-core` | Core package tests only; use for fast TDD |
 | `mise format` / `mise format-lint` | Format or check Swift sources with SwiftFormat (`.swiftformat`) |
 | `mise package-resolve` | Resolve packages and refresh `OpenSourceLicenses.md` (alias: `scan-license`) |
 | `mise chore` | Strip strings, refresh licenses, format |
+| `mise clean` | Remove `.DerivedData` and SwiftPM build output |
 
 - `run_xcodebuild.sh` fails on the exit code, compiler errors, and xcodebuild failure summaries. Still read the log: a passing run must have no compiler warnings and every test must pass.
 - `run_xcodebuild.sh` passes `-skipMacroValidation`, so packages with Swift macros build on the command line. In Xcode, select **Trust & Enable** the first time you build such a package.
 - Override defaults with environment variables: `CONFIGURATION=Release mise build`, `SIMULATOR_ID=<udid> mise test`, `ALLOW_DIRTY=1 mise package-resolve`.
+- Builds do not sign by default. `SIGN=1 mise build-device` signs with the team in `Base.xcconfig` and lets xcodebuild update provisioning profiles.
 - Scripts: bash only for thin wrappers, Python 3 with the standard library for anything that parses files. Do not add other script languages.
 
 ## Tests

@@ -1,6 +1,7 @@
 import importlib.util
 import shutil
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -16,7 +17,7 @@ class ConfigureTests(unittest.TestCase):
     def setUp(self) -> None:
         self.root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root)
-        for name in ["Configuration", ".github", "skills", "App", "ModernUIKit.xcworkspace"]:
+        for name in ["Configuration", ".agents", ".github", "skills", "App", "Scripts", "ModernUIKit.xcworkspace"]:
             shutil.copytree(REPO_ROOT / name, self.root / name, ignore=shutil.ignore_patterns("__pycache__"))
         for name in ["CONTRIBUTING.md", "AI_POLICY.md", "HACKING.md", "LICENSE", "README.md", "AGENTS.md", "mise.toml", ".gitattributes"]:
             shutil.copy(REPO_ROOT / name, self.root / name)
@@ -65,7 +66,10 @@ class ConfigureTests(unittest.TestCase):
     def test_generated_project_does_not_reference_removed_tooling(self) -> None:
         create_project.configure(self.root, "Mottai", "Mottai", "org.zaxh.Mottai", "")
 
-        self.assertNotIn("test-tooling", (self.root / "mise.toml").read_text())
+        tasks = tomllib.loads((self.root / "mise.toml").read_text())["tasks"]
+        self.assertNotIn("test-tooling", tasks)
+        self.assertNotIn({"task": "test-tooling"}, tasks["check"]["run"])
+        self.assertIn({"task": "test"}, tasks["check"]["run"])
         for path in self.root.rglob("*"):
             if path.is_file() and path.suffix in {"", ".md", ".toml", ".yml", ".sh", ".py"}:
                 text = path.read_text(errors="ignore")

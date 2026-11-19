@@ -15,10 +15,17 @@ dir = "{{config_root}}"
 
 [tasks.build]
 description = "Build for iOS Simulator, and Mac Catalyst when enabled"
+run = [
+    './Scripts/run_xcodebuild.sh build "generic/platform=iOS Simulator"',
+    { task = "build-catalyst-if-enabled" },
+]
+
+[tasks.build-catalyst-if-enabled]
+description = "Build for Mac Catalyst when SUPPORTS_MACCATALYST = YES"
+hide = true
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-./Scripts/run_xcodebuild.sh build "generic/platform=iOS Simulator"
 if grep -q '^SUPPORTS_MACCATALYST = YES' Configuration/Base.xcconfig; then
     mise run build-catalyst
 fi
@@ -45,7 +52,7 @@ description = "Build, install, and launch on an iOS Simulator"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-mise run build
+./Scripts/run_xcodebuild.sh build "generic/platform=iOS Simulator"
 SIMULATOR_ID="${SIMULATOR_ID:-$(./Scripts/simulator_udid.py)}"
 APP_PATH=".DerivedData/Build/Products/${CONFIGURATION:-Debug}-iphonesimulator/App.app"
 BUNDLE_ID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist")
@@ -69,7 +76,7 @@ run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 SIMULATOR_ID="${SIMULATOR_ID:-$(./Scripts/simulator_udid.py)}"
-./Scripts/run_xcodebuild.sh test "id=$SIMULATOR_ID"
+./Scripts/run_xcodebuild.sh test "id=$SIMULATOR_ID" -testPlan App
 '''
 
 [tasks.test-tooling]
@@ -77,6 +84,16 @@ description = "Run the Scripts and uikit-starter Python unit tests"
 run = [
     "python3 -m unittest discover -s Scripts/Tests",
     "python3 -m unittest discover -s skills/uikit-starter/tests",
+]
+
+[tasks.check]
+description = "Run all checks before a commit: format, strings, tooling tests, tests, and the Mac Catalyst build when enabled"
+run = [
+    { task = "format-lint" },
+    { task = "validate-xcstrings" },
+    { task = "test-tooling" },
+    { task = "test" },
+    { task = "build-catalyst-if-enabled" },
 ]
 
 [tasks.package-resolve]
