@@ -24,9 +24,11 @@ Use these defaults without asking. Change one only when the user asks:
 | Verification | `mise build` | `--verify test`, `check`, or `none` |
 | Parent directory | The user's working directory | `--parent-dir <path>` |
 
+The GitHub repo goes to the account that `gh` is signed in to. To create it in an organization, use `--repo <owner>/<name>`. The local directory is then `<name>`.
+
 ## Run
 
-First run `gh auth status`, unless you use `--no-remote`.
+Prerequisites: `git`, `gh` (not necessary with `--no-remote`), `mise`, and Xcode with an iOS simulator runtime. First run `command -v mise`. If mise is missing, ask the user to install it (https://mise.jdx.dev). Then run `gh auth status`, unless you use `--no-remote`.
 
 If this skill is installed, the script clones the template from GitHub:
 
@@ -44,12 +46,16 @@ python3 <tmp>/Modern.UIKit/skills/uikit-starter/scripts/create_project.py \
     --template-dir <tmp>/Modern.UIKit/template --parent-dir <parent-dir>
 ```
 
+After the script creates the app, delete `<tmp>/Modern.UIKit`.
+
 The script:
 
 1. Copies the files of `template/` that git tracks, or that are untracked and not ignored, into `<parent-dir>/<repo>`. Build output and local `Developer*.xcconfig` files stay out.
 2. Sets the identity and platforms in `Configuration/Base.xcconfig`, renames the workspace to `<repo>.xcworkspace`, and writes a short README. The project, target, and scheme keep the name `App`. Do not rename them.
 3. Runs `git init`. Unless `--no-remote`, it creates an empty GitHub repo and adds it as `origin`.
-4. Runs the selected `mise` verification. It makes no commit and no push.
+4. Unless `--verify none`, runs `mise install` and the selected `mise` verification. It makes no commit and no push.
+
+The script exits non-zero on any build error, test failure, or warning. Exit code 0 means that the verification passed.
 
 ## After Creation
 

@@ -129,6 +129,7 @@ def main() -> int:
 
     if args.verify != "none":
         run(["mise", "trust", "mise.toml"], cwd=repo_root)
+        run(["mise", "install"], cwd=repo_root)
         run(["mise", args.verify], cwd=repo_root)
 
     print(f"Created project at: {repo_root}")
