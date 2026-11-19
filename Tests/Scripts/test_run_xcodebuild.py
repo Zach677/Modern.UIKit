@@ -62,5 +62,42 @@ class SigningTests(unittest.TestCase):
         self.assertNotIn("CODE_SIGNING_ALLOWED=NO", args)
 
 
+
+class WarningTests(unittest.TestCase):
+    def run_script(self, output: str) -> subprocess.CompletedProcess:
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        (root / "App.xcworkspace").mkdir()
+        # A fake xcodebuild on PATH prints the log and exits 0.
+        (root / "output").write_text(output)
+        fake = root / "bin" / "xcodebuild"
+        fake.parent.mkdir()
+        fake.write_text(f'#!/bin/sh\ncat "{root / "output"}"\n')
+        fake.chmod(0o755)
+        env = {**os.environ, "PATH": f"{fake.parent}:{os.environ['PATH']}"}
+        return subprocess.run([SCRIPT, "build", "generic/platform=iOS"], cwd=root, env=env, capture_output=True, text=True)
+
+    def test_warnings_fail_the_run(self) -> None:
+        for line in (
+            "/src/App/View.swift:12:5: warning: variable 'x' was never used",
+            "/src/App.xcodeproj: warning: The iOS Simulator deployment target is set to 12.0",
+            "/src/App.xcodeproj: App: ld: warning: ignoring duplicate libraries: '-lc++'",
+        ):
+            with self.subTest(line=line):
+                result = self.run_script(f"** BUILD START **\n{line}\n** BUILD SUCCEEDED **\n")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(line, result.stderr)
+
+    def test_clean_log_and_known_noise_pass(self) -> None:
+        result = self.run_script(
+            "2026-11-19 16:15:05.470 appintentsmetadataprocessor[80865:6657897] warning: Metadata extraction skipped,"
+            " no AppIntents.framework dependency found\n"
+            "/src/App.xcodeproj: App: ld: warning: search path '/var/run/com.apple.security.cryptexd/mnt/"
+            "com.apple.MobileAsset.MetalToolchain-v27.2.47.0.KtC3oC/Metal.xctoolchain/usr/lib/swift/maccatalyst' not found\n"
+            "** BUILD SUCCEEDED **\n"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

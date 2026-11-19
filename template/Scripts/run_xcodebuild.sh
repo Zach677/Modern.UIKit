@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run xcodebuild for the App scheme. Show the output live, and fail when the
-# exit code or the log reports an error.
+# exit code or the log reports an error or a warning.
 #
 # Usage: run_xcodebuild.sh <action> <destination> [extra xcodebuild arguments]
 # Env:   CONFIGURATION  Build configuration (default: Debug)
@@ -57,9 +57,19 @@ set -e
 error_pattern='^(/[^:]+(:[^: ]+)*: |xcodebuild: )?error:|^\*\* (BUILD|TEST|ARCHIVE|CLEAN|ANALYZE) FAILED \*\*|^Testing failed:|^Failing tests:'
 errors=$(grep -E "$error_pattern" "$log" || true)
 
-if [[ $status -ne 0 || -n $errors ]]; then
+# Warnings use the same anchors, plus linker warnings, which the build system
+# prefixes with "<project>: <target>: ". The anchors skip system log lines such
+# as "<date> appintentsmetadataprocessor[pid] warning: Metadata extraction skipped".
+warning_pattern='^(/[^:]+(:[^: ]+)*: |xcodebuild: )?warning:|^/[^:]+: [^:]+: ld: warning:'
+# Xcode adds this search path when the Metal toolchain component is installed,
+# but the component has no Mac Catalyst Swift libraries. The project cannot fix it.
+ignored_warning_pattern="ld: warning: search path '[^']*/Metal\.xctoolchain/usr/lib/swift/maccatalyst' not found$"
+warnings=$(grep -E "$warning_pattern" "$log" | grep -vE "$ignored_warning_pattern" || true)
+
+if [[ $status -ne 0 || -n $errors || -n $warnings ]]; then
     echo "" >&2
     echo "error: xcodebuild $action failed (exit $status)" >&2
     [[ -n $errors ]] && head -40 <<<"$errors" >&2
+    [[ -n $warnings ]] && head -40 <<<"$warnings" >&2
     exit $((status == 0 ? 1 : status))
 fi

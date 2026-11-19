@@ -68,7 +68,7 @@ Always use `mise`. Do not call `xcodebuild` or `swift test` directly. Run `mise 
 | `mise chore` | Strip strings, refresh licenses, format |
 | `mise clean` | Remove `.DerivedData` and SwiftPM build output |
 
-- `run_xcodebuild.sh` fails on the exit code, compiler errors, and xcodebuild failure summaries. Still read the log: a passing run must have no compiler warnings and every test must pass.
+- `run_xcodebuild.sh` fails on the exit code, compiler errors, compiler and build warnings, and xcodebuild failure summaries.
 - `run_xcodebuild.sh` passes `-skipMacroValidation`, so packages with Swift macros build on the command line. In Xcode, select **Trust & Enable** the first time you build such a package.
 - Override defaults with environment variables: `CONFIGURATION=Release mise build`, `SIMULATOR_ID=<udid> mise test`, `ALLOW_DIRTY=1 mise package-resolve`.
 - Builds do not sign by default. `SIGN=1 mise build-device` signs with the team in `Base.xcconfig` and lets xcodebuild update provisioning profiles.
