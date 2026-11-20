@@ -2,6 +2,8 @@
 
 > Agent-native, programmatic UIKit starter for iOS 26 apps.
 
+Modern.UIKit pairs a clean Xcode workspace template with a `uikit-starter` agent skill that scaffolds a new repository from `template/`. Each generated app ships with `AGENTS.md`, `mise` tasks, and CLI-friendly build, localization, and test scripts so coding agents can work without clicking through Xcode.
+
 ## Start with an AI Agent
 
 Give this prompt to Codex, Claude Code, or another coding agent. Replace the app name and bundle ID:
@@ -13,7 +15,7 @@ App name: <AppName>
 Bundle ID: <com.example.AppName>
 ```
 
-To use the skill again without the prompt, install it with `npx skills add Zach677/Modern.UIKit --skill uikit-starter -g -y`, or copy or symlink `skills/uikit-starter` into the skills folder of your agent. Then ask: `Use $uikit-starter to create a new UIKit app named Mottai with bundle ID org.zaxh.Mottai.`
+To use the skill again without the prompt, install it with `npx skills add Zach677/Modern.UIKit --skill uikit-starter -g -y`, or copy or symlink `skills/uikit-starter` into the skills folder of your agent. Then ask: `Use $uikit-starter to create a new UIKit app named MyApp with bundle ID com.example.MyApp.`
 
 ## Create a Project
 
@@ -23,12 +25,10 @@ Without an agent, run the script from a local checkout:
 
 ```bash
 python3 skills/uikit-starter/scripts/create_project.py \
-    --repo Mottai --bundle-id org.zaxh.Mottai --template-dir template --parent-dir ~/Developer
+    --repo MyApp --bundle-id com.example.MyApp --template-dir template --parent-dir ~/Developer
 ```
 
-Do not use the GitHub **Use this template** button. It copies the whole repository, including the template-only files at the root.
-
-## Starter
+## What's included
 
 - UIKit scene lifecycle through `@main AppDelegate` and `SceneDelegate`. No storyboards; the launch screen uses the `UILaunchScreen` key.
 - iOS 26, Swift 6 with `MainActor` default isolation.
@@ -37,6 +37,12 @@ Do not use the GitHub **Use this template** button. It copies the whole reposito
 - Hosted Swift Testing target, shared test plan, and an Xcode workspace.
 - Shared xcconfig files for identity, signing, and version.
 - String catalog with `en` and `zh-Hans`, and a validator for missing or stale keys.
+
+## Requirements
+
+- Xcode with the iOS 26 SDK or later
+- `mise`
+- `gh` to create the GitHub repository; run `mise install` in `template/` or in the app for the pinned SwiftFormat and xcbeautify
 
 ## Development
 
@@ -68,12 +74,6 @@ See [template/AGENTS.md](template/AGENTS.md) for the app rules and [HACKING.md](
 ## Contributing
 
 Bug reports and small, focused pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-## Requirements
-
-- Xcode with the iOS 26 SDK or later
-- `mise`
-- `gh` to create the GitHub repository; run `mise install` in `template/` or in the app for the pinned SwiftFormat and xcbeautify
 
 ## Acknowledgements
 
