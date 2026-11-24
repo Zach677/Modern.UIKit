@@ -18,8 +18,9 @@ Use these defaults without asking. Change one only when the user asks:
 | --- | --- | --- |
 | Display name | The repo name | `--display-name 趁鲜` |
 | Devices | iPhone only | `--ipad` adds iPad |
-| Mac Catalyst | Off | `--mac-catalyst` (also adds iPad) |
+| Mac Catalyst | Off | `--mac-catalyst` (also adds iPad, App Sandbox entitlements, and Hardened Runtime) |
 | Development team | Empty | `--development-team ABCDE12345` |
+| Swift file header | Off | `--author @Zach677` (adds `.swiftformat` header and `.githooks/pre-commit`) |
 | GitHub repo | Private | `--visibility public`, or `--no-remote` for no GitHub repo |
 | Verification | `mise build` | `--verify test`, `check`, or `none` |
 | Parent directory | The user's working directory | `--parent-dir <path>` |

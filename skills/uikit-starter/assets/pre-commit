@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Adds or fixes the Swift file header (see .swiftformat) on staged Swift files.
+# Only the fileHeader rule runs here; `mise format` does the rest.
+# Enable once per clone: `mise hooks` or `git config core.hooksPath .githooks`.
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+# Capture any ambient swiftformat before adding mise/Homebrew fallbacks so a broken
+# shim cannot shadow a working binary already on PATH.
+ambient_swiftformat="$(command -v swiftformat 2>/dev/null || true)"
+export PATH="$PATH:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin"
+
+find_swiftformat() {
+    local candidate
+    if command -v mise >/dev/null 2>&1 \
+        && candidate="$(mise which swiftformat 2>/dev/null)" \
+        && [ -n "$candidate" ] \
+        && [ -x "$candidate" ] \
+        && "$candidate" --version >/dev/null 2>&1; then
+        printf '%s\n' "$candidate"
+        return 0
+    fi
+    for candidate in \
+        "$HOME/.local/share/mise/shims/swiftformat" \
+        "$ambient_swiftformat" \
+        "/opt/homebrew/bin/swiftformat" \
+        "/usr/local/bin/swiftformat"
+    do
+        if [ -n "$candidate" ] && [ -x "$candidate" ] && "$candidate" --version >/dev/null 2>&1; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+staged_swift=()
+while IFS= read -r -d '' file; do
+    staged_swift+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACMR -z -- '*.swift')
+
+if [ "${#staged_swift[@]}" -eq 0 ]; then
+    exit 0
+fi
+
+if ! swiftformat_bin="$(find_swiftformat)"; then
+    echo "pre-commit: swiftformat not found (run 'mise install' or 'brew install swiftformat', or bypass with --no-verify)." >&2
+    exit 1
+fi
+
+clean_files=()
+clean_args=()
+partial_files=()
+for file in "${staged_swift[@]}"; do
+    if git --literal-pathspecs diff --quiet -- "$file"; then
+        clean_files+=("$file")
+        clean_args+=("./$file")
+    else
+        partial_files+=("$file")
+    fi
+done
+
+if [ "${#clean_files[@]}" -gt 0 ]; then
+    "$swiftformat_bin" --rules fileHeader --quiet "${clean_args[@]}"
+    git --literal-pathspecs add -- "${clean_files[@]}"
+fi
+
+failed_partial=()
+if [ "${#partial_files[@]}" -gt 0 ]; then
+    for file in "${partial_files[@]}"; do
+        if ! git show ":$file" | "$swiftformat_bin" stdin --stdinpath "./$file" --rules fileHeader --lint --quiet >/dev/null; then
+            failed_partial+=("$file")
+        fi
+    done
+fi
+
+if [ "${#failed_partial[@]}" -gt 0 ]; then
+    echo "pre-commit: staged Swift file(s) also have unstaged changes and are missing the required file header:" >&2
+    printf '  %s\n' "${failed_partial[@]}" >&2
+    echo "Run 'swiftformat --rules fileHeader ./<file>' and stage the header before committing." >&2
+    exit 1
+fi
