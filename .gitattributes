@@ -1,6 +1,5 @@
 # Keep the GitHub language bar focused on Swift.
 # These paths are repository automation or agent prompts.
-template/.agents/** linguist-vendored
 template/Scripts/** linguist-vendored
 template/mise.toml linguist-vendored
 Tests/** linguist-vendored

@@ -58,6 +58,6 @@ welcome AI as a tool!
 instead due to the number of highly unqualified people using AI. It's the
 people, not the tools, that are the problem.
 
-I include this section to be transparent about the project's usage about
+I include this section to be transparent about the project's usage of
 AI for people who may disagree with it, and to address the misconception
 that this policy is anti-AI in nature.

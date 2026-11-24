@@ -14,7 +14,7 @@
 - `App/Application/`: lifecycle and app-wide composition only. No feature logic.
 - `App/Interface/<Feature>/`: view controllers, views, and cells for one feature. Move a type to `Interface/Common/` only when two or more features use it.
 - `App/Services/`: side effects such as notifications, camera, and network clients.
-- `App/Resources/`: assets, `Info.plist`, `Localizable.xcstrings`, and other files that ship in the app.
+- `App/Resources/`: assets, `Info.plist`, `Localizable.xcstrings`, and other files that ship in the app. Mac Catalyst App Sandbox entitlements (`CODE_SIGN_ENTITLEMENTS[sdk=macosx*]`) and `ENABLE_HARDENED_RUNTIME[sdk=macosx*]` belong on the `App` target in the Xcode project, not in `Base.xcconfig`, because `AppTests` also inherits `Base.xcconfig`.
 - `Packages/Core/`: UI-free models and business logic. Do not import UIKit here. Put logic here when it can be tested without UIKit.
 - `AppTests/`: hosted tests, one folder per feature, mirroring `App/`.
 - `Configuration/`: xcconfig files. Local overrides go in the untracked `Developer.xcconfig`, `DevelopmentDeveloper.xcconfig`, and `DeveloperRelease.xcconfig`.
@@ -57,8 +57,8 @@ Always use `mise`. Do not call `xcodebuild` or `swift test` directly. Run `mise 
 | Task | Purpose |
 | --- | --- |
 | `mise check` | Run before each commit: `format-lint`, `validate-xcstrings`, `test`, and `build-catalyst` when Mac Catalyst is on |
-| `mise build` | Build for iOS Simulator |
-| `mise build-catalyst` | Build for Mac Catalyst; `mise build` also runs it when `SUPPORTS_MACCATALYST = YES` |
+| `mise build` | Build for iOS Simulator, and Mac Catalyst when enabled |
+| `mise build-catalyst` | Build for Mac Catalyst only |
 | `mise build-device` | Build for a generic iOS device |
 | `mise run-ios` | Build for iOS Simulator, then install and launch on the newest iPhone simulator |
 | `mise test` | `test-core` (`swift test` on macOS) and then `test-app` (hosted tests on a simulator) |
@@ -68,6 +68,7 @@ Always use `mise`. Do not call `xcodebuild` or `swift test` directly. Run `mise 
 | `mise chore` | Strip strings, refresh licenses, format |
 | `mise clean` | Remove `.DerivedData` and SwiftPM build output |
 
+- Run one `mise` task at a time. Parallel agents share `.DerivedData` and `.build`.
 - `run_xcodebuild.sh` fails on the exit code, compiler errors, compiler and build warnings, and xcodebuild failure summaries.
 - `run_xcodebuild.sh` passes `-skipMacroValidation`, so packages with Swift macros build on the command line. In Xcode, select **Trust & Enable** the first time you build such a package.
 - Override defaults with environment variables: `CONFIGURATION=Release mise build`, `SIMULATOR_ID=<udid> mise test`, `ALLOW_DIRTY=1 mise package-resolve`.
