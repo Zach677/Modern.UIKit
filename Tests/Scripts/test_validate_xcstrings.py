@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,13 +16,14 @@ def unit(value: str) -> dict:
 
 
 class ValidateFileTests(unittest.TestCase):
-    def validate(self, swift: str, strings: dict) -> list[str]:
+    def validate(self, swift: str, strings: dict, filename: str = "Localizable.xcstrings") -> list[str]:
         root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
         resources = root / "App" / "Resources"
         resources.mkdir(parents=True)
-        (root / "App" / "View.swift").write_text(swift)
-        catalog = resources / "Localizable.xcstrings"
-        catalog.write_text(json.dumps({"sourceLanguage": "en", "strings": strings, "version": "1.0"}))
+        (root / "App" / "View.swift").write_text(swift, encoding="utf-8")
+        catalog = resources / filename
+        catalog.write_text(json.dumps({"sourceLanguage": "en", "strings": strings, "version": "1.0"}), encoding="utf-8")
         return validate_xcstrings.validate_file(catalog, root, {"zh-Hans"})
 
     def test_interpolated_string_matches_format_specifier_key(self) -> None:
@@ -38,6 +40,38 @@ class ValidateFileTests(unittest.TestCase):
             {"%lld items": {"localizations": {"en": plural("%lld item", "%lld items"), "zh-Hans": plural("%lld 件", "%lld 件")}}},
         )
         self.assertEqual(errors, [])
+
+    def test_substitutions_are_valid_and_nested_units_are_checked(self) -> None:
+        sub = lambda one, other: {
+            "stringUnit": {"state": "translated", "value": "%#@items@"},
+            "substitutions": {"items": {"variations": {"plural": {"one": unit(one), "other": unit(other)}}}},
+        }
+        errors = self.validate(
+            'let text = String(localized: "\\(count) items")',
+            {"%lld items": {"localizations": {"en": sub("%arg item", "%arg items"), "zh-Hans": sub("%arg 件", "%arg 件")}}},
+        )
+        self.assertEqual(errors, [])
+
+        bad_errors = self.validate(
+            'let text = String(localized: "\\(count) items")',
+            {"%lld items": {"localizations": {"en": sub("%arg item", "%arg items"), "zh-Hans": sub("", "%arg 件")}}},
+        )
+        self.assertTrue(any("zh-Hans value is empty" in error for error in bad_errors), bad_errors)
+
+    def test_info_plist_skips_source_mirror_and_swift_refs(self) -> None:
+        errors = self.validate(
+            "",
+            {"CFBundleDisplayName": {"localizations": {"en": unit("Kinako"), "zh-Hans": unit("黄豆粉")}}},
+            filename="InfoPlist.xcstrings",
+        )
+        self.assertEqual(errors, [])
+
+        missing = self.validate(
+            "",
+            {"CFBundleDisplayName": {"localizations": {"en": unit("Kinako")}}},
+            filename="InfoPlist.xcstrings",
+        )
+        self.assertTrue(any("missing zh-Hans" in error for error in missing), missing)
 
     def test_missing_translation_still_fails(self) -> None:
         errors = self.validate(
@@ -58,10 +92,14 @@ class IterXcstringsTests(unittest.TestCase):
             for folder in ("App/Resources", ".DerivedData/SourcePackages/checkouts/Some/Resources"):
                 (root / folder).mkdir(parents=True)
                 (root / folder / "Localizable.xcstrings").write_text("{}")
+            (root / "App/Resources/InfoPlist.xcstrings").write_text("{}")
 
             found = [path.relative_to(root) for path in validate_xcstrings.iter_xcstrings(root)]
 
-        self.assertEqual(found, [Path("App/Resources/Localizable.xcstrings")])
+        self.assertEqual(
+            found,
+            [Path("App/Resources/Localizable.xcstrings"), Path("App/Resources/InfoPlist.xcstrings")],
+        )
 
 
 if __name__ == "__main__":

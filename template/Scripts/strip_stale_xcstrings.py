@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Strip stale keys from Localizable.xcstrings files and normalize source values."""
+"""Strip stale keys from Localizable.xcstrings and InfoPlist.xcstrings files and normalize source values."""
 
 from __future__ import annotations
 
@@ -19,13 +19,15 @@ EXCLUDE_DIR_NAMES = {
 }
 
 DEFAULT_SOURCE_LANGUAGE = "en"
+CATALOG_NAMES = ("Localizable.xcstrings", "InfoPlist.xcstrings")
 
 
 def iter_xcstrings(root: Path):
-    for path in root.rglob("Localizable.xcstrings"):
-        if any(part in EXCLUDE_DIR_NAMES for part in path.parts):
-            continue
-        yield path
+    for name in CATALOG_NAMES:
+        for path in sorted(root.rglob(name)):
+            if any(part in EXCLUDE_DIR_NAMES for part in path.parts):
+                continue
+            yield path
 
 
 def source_language(doc: dict) -> str:
@@ -35,7 +37,7 @@ def source_language(doc: dict) -> str:
     return DEFAULT_SOURCE_LANGUAGE
 
 
-def normalize(doc: dict) -> tuple[dict, int, int, str]:
+def normalize(doc: dict, *, mirror_source_from_key: bool = True) -> tuple[dict, int, int, str]:
     strings = doc.get("strings", {})
     source_lang = source_language(doc)
     stale_removed = 0
@@ -51,8 +53,8 @@ def normalize(doc: dict) -> tuple[dict, int, int, str]:
         localizations = dict(entry.get("localizations") or {})
 
         source_loc = dict(localizations.get(source_lang) or {})
-        if "variations" in source_loc:
-            # Plural and device variations have their own values; keep them.
+        if "variations" in source_loc or "substitutions" in source_loc:
+            # Plural, substitution, and device variations have their own values; keep them.
             entry["localizations"] = localizations
             new_strings[key] = entry
             continue
@@ -60,8 +62,17 @@ def normalize(doc: dict) -> tuple[dict, int, int, str]:
         current_value = string_unit.get("value")
         current_state = string_unit.get("state")
 
-        if current_value != key or current_state != "translated":
-            string_unit["value"] = key
+        if mirror_source_from_key:
+            if current_value != key or current_state != "translated":
+                string_unit["value"] = key
+                string_unit["state"] = "translated"
+                source_loc["stringUnit"] = string_unit
+                localizations[source_lang] = source_loc
+                entry["localizations"] = localizations
+                source_fixed += 1
+            else:
+                entry["localizations"] = localizations
+        elif isinstance(current_value, str) and current_value and current_state != "translated":
             string_unit["state"] = "translated"
             source_loc["stringUnit"] = string_unit
             localizations[source_lang] = source_loc
@@ -81,7 +92,9 @@ def process(path: Path) -> bool:
     original_text = path.read_text(encoding="utf-8")
     trailing_newline = original_text.endswith("\n")
     doc = json.loads(original_text)
-    new_doc, stale_removed, source_fixed, source_lang = normalize(doc)
+    new_doc, stale_removed, source_fixed, source_lang = normalize(
+        doc, mirror_source_from_key=(path.name == "Localizable.xcstrings")
+    )
 
     new_text = json.dumps(
         new_doc, ensure_ascii=False, indent=2, separators=(",", " : ")
@@ -111,7 +124,7 @@ def main() -> int:
     any_changed = False
     files = list(iter_xcstrings(root))
     if not files:
-        print(f"[!] no Localizable.xcstrings found under {root}")
+        print(f"[!] no Localizable.xcstrings or InfoPlist.xcstrings found under {root}")
         return 0
 
     for path in files:

@@ -24,7 +24,7 @@ run = [
 set -euo pipefail
 parent=$(mktemp -d)
 trap 'rm -rf "$parent"' EXIT
-python3 skills/uikit-starter/scripts/create_project.py \
+/usr/bin/python3 skills/uikit-starter/scripts/create_project.py \
     --repo CheckApp \
     --bundle-id org.example.CheckApp \
     --template-dir template \

@@ -103,11 +103,11 @@ run = "swiftformat . --lint"
 
 [tasks.strip-xcstrings]
 description = "Drop stale keys and mirror keys into en values"
-run = "python3 ./Scripts/strip_stale_xcstrings.py"
+run = "./Scripts/strip_stale_xcstrings.py"
 
 [tasks.validate-xcstrings]
 description = "Fail on stale, orphaned, or unregistered keys and missing translations"
-run = "python3 ./Scripts/validate_xcstrings.py --require-locale zh-Hans"
+run = "./Scripts/validate_xcstrings.py --require-locale zh-Hans"
 
 [tasks.chore]
 description = "Strip xcstrings, refresh licenses, then format"
@@ -121,4 +121,4 @@ mise run format
 
 [tasks.clean]
 description = "Remove derived data and SwiftPM build output"
-run = "rm -rf .DerivedData .build Packages/Core/.build"
+run = "rm -rf .DerivedData .build Packages/*/.build"

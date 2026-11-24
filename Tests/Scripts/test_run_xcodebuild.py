@@ -62,7 +62,6 @@ class SigningTests(unittest.TestCase):
         self.assertNotIn("CODE_SIGNING_ALLOWED=NO", args)
 
 
-
 class WarningTests(unittest.TestCase):
     def run_script(self, output: str) -> subprocess.CompletedProcess:
         root = Path(tempfile.mkdtemp())
@@ -82,6 +81,7 @@ class WarningTests(unittest.TestCase):
             "/src/App/View.swift:12:5: warning: variable 'x' was never used",
             "/src/App.xcodeproj: warning: The iOS Simulator deployment target is set to 12.0",
             "/src/App.xcodeproj: App: ld: warning: ignoring duplicate libraries: '-lc++'",
+            "ld: warning: ignoring duplicate libraries: '-lc++'",
         ):
             with self.subTest(line=line):
                 result = self.run_script(f"** BUILD START **\n{line}\n** BUILD SUCCEEDED **\n")

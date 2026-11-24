@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate Localizable.xcstrings files for release readiness.
+"""Validate Localizable.xcstrings and InfoPlist.xcstrings files for release readiness.
 
 Checks per catalog:
   1. Entry hygiene: no stale entries, no empty values, source values mirror keys.
@@ -10,6 +10,8 @@ Checks per catalog:
      `NSLocalizedString` key in those sources exists in the catalog.
 
 The owning target of `<Target>/Resources/Localizable.xcstrings` is `<Target>/`.
+`InfoPlist.xcstrings` gets checks 1 (without mirroring keys) and 2 only: its
+keys are Info.plist keys, not source sentences, and Swift never references them.
 Keys built from variables at runtime are invisible to the cross-reference; if
 one ever appears, register it with an explicit literal alongside the dynamic
 call site.
@@ -57,10 +59,15 @@ SWIFT_ESCAPES = {
 
 
 def iter_xcstrings(root: Path):
-    for path in root.rglob("Localizable.xcstrings"):
-        if any(part in EXCLUDE_DIR_NAMES for part in path.parts):
-            continue
-        yield path
+    for name in ("Localizable.xcstrings", "InfoPlist.xcstrings"):
+        for path in sorted(root.rglob(name)):
+            if any(part in EXCLUDE_DIR_NAMES for part in path.parts):
+                continue
+            yield path
+
+
+def is_info_plist(path: Path) -> bool:
+    return path.name == "InfoPlist.xcstrings"
 
 
 def unescape_swift_literal(literal: str) -> str:
@@ -91,14 +98,17 @@ def key_skeleton(key: str) -> str:
 
 
 def string_units(localization: dict) -> list[dict]:
-    """Return the stringUnit of a localization, or of each plural/device variation."""
-    if isinstance(localization.get("stringUnit"), dict):
-        return [localization["stringUnit"]]
+    """Return the stringUnit of a localization, plus each variation and substitution unit."""
     units: list[dict] = []
+    if isinstance(localization.get("stringUnit"), dict):
+        units.append(localization["stringUnit"])
     for cases in (localization.get("variations") or {}).values():
         for case in (cases or {}).values():
             if isinstance(case, dict):
                 units.extend(string_units(case))
+    for sub in (localization.get("substitutions") or {}).values():
+        if isinstance(sub, dict):
+            units.extend(string_units(sub))
     return units
 
 
@@ -131,7 +141,12 @@ def discover_locales(strings: dict) -> set[str]:
 
 
 def validate_entry(
-    key: str, entry: dict, source_lang: str, required_locales: set[str]
+    key: str,
+    entry: dict,
+    source_lang: str,
+    required_locales: set[str],
+    *,
+    mirror_source_key: bool = True,
 ) -> list[str]:
     errors: list[str] = []
 
@@ -158,13 +173,22 @@ def validate_entry(
             errors.append(f"{key!r}: {locale} has no stringUnit")
             continue
 
+        top_unit = loc.get("stringUnit")
+        check_mirror = (
+            mirror_source_key
+            and locale == source_lang
+            and isinstance(top_unit, dict)
+            and "variations" not in loc
+            and "substitutions" not in loc
+        )
+
         for string_unit in units:
             value = string_unit.get("value")
             state = string_unit.get("state")
 
             if not isinstance(value, str) or not value:
                 errors.append(f"{key!r}: {locale} value is empty")
-            elif locale == source_lang and "stringUnit" in loc and value != key:
+            elif check_mirror and string_unit is top_unit and value != key:
                 errors.append(
                     f"{key!r}: {locale} value does not mirror the key "
                     f"(got {value!r}; run `mise strip-xcstrings`)"
@@ -193,10 +217,20 @@ def validate_file(path: Path, root: Path, extra_locales: set[str]) -> list[str]:
     required_locales.add(source_lang)
     required_locales.update(extra_locales)
 
+    info_plist = is_info_plist(path)
     errors: list[str] = []
     for key, entry in strings.items():
-        for err in validate_entry(key, entry, source_lang, required_locales):
+        for err in validate_entry(
+            key,
+            entry,
+            source_lang,
+            required_locales,
+            mirror_source_key=not info_plist,
+        ):
             errors.append(f"{path}: {err}")
+
+    if info_plist:
+        return errors
 
     scope = target_scope(path, root)
     source_keys = referenced_keys(scope)
@@ -237,7 +271,7 @@ def main() -> int:
 
     files = list(iter_xcstrings(root))
     if not files:
-        print(f"[!] no Localizable.xcstrings found under {root}")
+        print(f"[!] no Localizable.xcstrings or InfoPlist.xcstrings found under {root}")
         return 0
 
     extra_locales = set(args.require_locale)

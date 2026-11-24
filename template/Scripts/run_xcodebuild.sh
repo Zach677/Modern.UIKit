@@ -60,7 +60,7 @@ errors=$(grep -E "$error_pattern" "$log" || true)
 # Warnings use the same anchors, plus linker warnings, which the build system
 # prefixes with "<project>: <target>: ". The anchors skip system log lines such
 # as "<date> appintentsmetadataprocessor[pid] warning: Metadata extraction skipped".
-warning_pattern='^(/[^:]+(:[^: ]+)*: |xcodebuild: )?warning:|^/[^:]+: [^:]+: ld: warning:'
+warning_pattern='^(/[^:]+(:[^: ]+)*: |xcodebuild: )?warning:|^(/[^:]+: [^:]+: )?ld: warning:'
 # Xcode adds this search path when the Metal toolchain component is installed,
 # but the component has no Mac Catalyst Swift libraries. The project cannot fix it.
 ignored_warning_pattern="ld: warning: search path '[^']*/Metal\.xctoolchain/usr/lib/swift/maccatalyst' not found$"
